@@ -1,0 +1,26 @@
+{
+    "command_enabled": {
+        "description": "启用命令行功能",
+        "type": "bool",
+        "hint": "启用后可以使用 /perm list 等命令查看插件列表。默认值为 true。",
+        "default": true
+    },
+    "auto_apply_on_load": {
+        "description": "插件加载时自动应用权限",
+        "type": "bool",
+        "hint": "启用后，插件加载时会自动应用已保存的权限配置。默认值为 true。",
+        "default": true
+    },
+    "batch_operation_confirm": {
+        "description": "批量操作需要确认",
+        "type": "bool",
+        "hint": "启用后，批量设置权限时会弹出确认提示。默认值为 true。",
+        "default": true
+    },
+    "log_permission_changes": {
+        "description": "记录权限变更日志",
+        "type": "bool",
+        "hint": "启用后，权限变更会被记录到日志中。默认值为 false。",
+        "default": false
+    }
+}

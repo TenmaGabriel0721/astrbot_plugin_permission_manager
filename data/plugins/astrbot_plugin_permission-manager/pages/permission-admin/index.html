@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>权限管理 - 首页</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/litera/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        body { padding-top: 20px; }
+        .plugin-card { cursor: pointer; transition: transform 0.2s; }
+        .plugin-card:hover { transform: translateY(-5px); }
+        .badge-count { font-size: 0.8em; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+        <div id="app">
+            <!-- 视图切换：列表页 -->
+            <div id="view-list">
+                <div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
+                    <div class="container-fluid py-2">
+                        <h1 class="display-6 fw-bold"><i class="fas fa-shield-lock"></i> 权限管理</h1>
+                        <p class="fs-6 text-muted">管理所有插件的命令权限，支持可视化改名、别名和权限设置。</p>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-primary"><i class="fas fa-puzzle-piece"></i> 插件列表</h5>
+                        <div class="input-group w-50">
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" class="form-control border-start-0" id="plugin-search" placeholder="搜索插件...">
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">插件名</th>
+                                        <th>命令 / 指令组</th>
+                                        <th class="text-end pe-4">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="plugins-tbody">
+                                    <tr>
+                                        <td colspan="3" class="text-center py-5">
+                                            <div class="spinner-border text-primary" role="status"></div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 视图切换：详情页 -->
+            <div id="view-detail" style="display: none;">
+                <nav aria-label="breadcrumb" class="mb-4">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="#" onclick="showListView()">插件列表</a></li>
+                        <li class="breadcrumb-item active" id="breadcrumb-plugin-name">插件详情</li>
+                    </ol>
+                </nav>
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2 id="detail-title">插件详情</h2>
+                    <div class="btn-group shadow-sm">
+                        <button class="btn btn-outline-danger btn-sm" onclick="batchSet('admin')"><i class="fas fa-lock"></i> 全员管理员</button>
+                        <button class="btn btn-outline-success btn-sm" onclick="batchSet('member')"><i class="fas fa-lock-open"></i> 全员普通</button>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">名称 / 句柄</th>
+                                        <th>权限状态</th>
+                                        <th class="text-end pe-4">配置</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="commands-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 别名管理模态框 -->
+    <div class="modal fade" id="aliasModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">管理别名</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="alias-badges" class="mb-3"></div>
+                    <div class="input-group">
+                        <input type="text" id="new-alias-input" class="form-control" placeholder="输入新别名">
+                        <button class="btn btn-primary" onclick="addAlias()">添加</button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary w-100" onclick="saveAliases()">保存修改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script type="module">
+        const bridge = window.AstrBotPluginPage;
+        let currentPlugin = '';
+        let currentHandler = '';
+        let currentAliases = [];
+        let pluginsData = [];
+
+        async function init() {
+            await bridge.ready();
+            loadPlugins();
+        }
+
+        async function loadPlugins() {
+            try {
+                const resp = await bridge.apiGet("plugins");
+                if (resp && (resp.success || Array.isArray(resp) || (resp.data && Array.isArray(resp.data)))) {
+                    pluginsData = resp.success ? resp.data : (Array.isArray(resp) ? resp : resp.data);
+                    renderPlugins(pluginsData);
+                } else {
+                    throw new Error(resp ? (resp.message || "格式错误") : "无数据");
+                }
+            } catch (e) {
+                document.getElementById('plugins-tbody').innerHTML = `<tr><td colspan="3" class="text-center text-danger">加载失败: ${e.message}</td></tr>`;
+            }
+        }
+
+        function renderPlugins(plugins) {
+            const tbody = document.getElementById('plugins-tbody');
+            tbody.innerHTML = plugins.map(p => `
+                <tr>
+                    <td class="ps-4"><strong>${p.name}</strong></td>
+                    <td><span class="badge bg-info text-dark">${p.command_count} CMD</span> <span class="badge bg-secondary">${p.group_count} GRP</span></td>
+                    <td class="text-end pe-4">
+                        <button class="btn btn-link btn-sm p-0" onclick="showDetail('${p.name}')">管理权限</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.showDetail = async (name) => {
+            currentPlugin = name;
+            document.getElementById('view-list').style.display = 'none';
+            document.getElementById('view-detail').style.display = 'block';
+            document.getElementById('breadcrumb-plugin-name').textContent = name;
+            document.getElementById('detail-title').textContent = name;
+            const tbody = document.getElementById('commands-tbody');
+            tbody.innerHTML = '<tr><td colspan="3" class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></td></tr>';
+
+            try {
+                const resp = await bridge.apiGet(`plugin/${encodeURIComponent(name)}/commands`);
+                let data = (resp && resp.success) ? resp.data : resp;
+                if (!data || !data.commands) throw new Error("数据格式错误");
+
+                const all = [...(data.commands || []), ...(data.groups || [])];
+                tbody.innerHTML = all.map(c => `
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold">${c.name}</div>
+                            <small class="text-muted">${c.handler}</small>
+                            ${c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('')}
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm" onchange="setPerm('${c.handler}', this.value)" style="width: 120px;">
+                                <option value="admin" ${c.permission.includes('admin')?'selected':''}>🔒 管理员</option>
+                                <option value="member" ${c.permission.includes('member')?'selected':''}>🔓 普通成员</option>
+                            </select>
+                        </td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openAliasModal('${c.handler}', ${JSON.stringify(c.aliases).replace(/"/g, '&quot;')})">别名</button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="renameCmd('${c.handler}', '${c.name}')">重命名</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">详情加载失败: ${e.message}</td></tr>`;
+            }
+        };
+
+        window.showListView = () => {
+            document.getElementById('view-list').style.display = 'block';
+            document.getElementById('view-detail').style.display = 'none';
+        };
+
+        window.setPerm = async (handler, val) => {
+            await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(handler)}/set-permission`, { permission: val });
+        };
+
+        window.batchSet = async (val) => {
+            if(confirm(`确定要将 ${currentPlugin} 的所有权限设置为 ${val} 吗？`)) {
+                await bridge.apiPost(`plugin/${encodeURIComponent(currentPlugin)}/set-permission`, { permission: val });
+                showDetail(currentPlugin);
+            }
+        };
+
+        window.renameCmd = async (handler, old) => {
+            const n = prompt("输入新名称", old);
+            if(n && n !== old) {
+                await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(handler)}/set-name`, { name: n });
+                showDetail(currentPlugin);
+            }
+        };
+
+        window.openAliasModal = (handler, aliases) => {
+            currentHandler = handler;
+            currentAliases = [...aliases];
+            renderAliasBadges();
+            new bootstrap.Modal(document.getElementById('aliasModal')).show();
+        };
+
+        window.addAlias = () => {
+            const val = document.getElementById('new-alias-input').value.trim();
+            if(val && !currentAliases.includes(val)) {
+                currentAliases.push(val);
+                document.getElementById('new-alias-input').value = '';
+                renderAliasBadges();
+            }
+        };
+
+        window.saveAliases = async () => {
+            await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(currentHandler)}/set-aliases`, { aliases: currentAliases });
+            bootstrap.Modal.getInstance(document.getElementById('aliasModal')).hide();
+            showDetail(currentPlugin);
+        };
+
+        function renderAliasBadges() {
+            document.getElementById('alias-badges').innerHTML = currentAliases.map((a, i) => `
+                <span class="badge bg-secondary me-1 p-2">${a} <i class="fas fa-times ms-1" style="cursor:pointer" onclick="currentAliases.splice(${i},1);renderAliasBadges()"></i></span>
+            `).join('');
+        }
+
+        document.getElementById('plugin-search').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            renderPlugins(pluginsData.filter(p => p.name.toLowerCase().includes(term)));
+        });
+
+        init();
+    </script>
+  </body>
+</html>
