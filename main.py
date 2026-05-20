@@ -1,4 +1,5 @@
 import asyncio
+import os
 from typing import Any, Dict, List, Optional, Tuple
 
 import astrbot.api.star as star
@@ -11,10 +12,7 @@ from astrbot.core.star.filter.command import CommandFilter
 from astrbot.core.star.filter.command_group import CommandGroupFilter
 from astrbot.core.star.filter.permission import PermissionTypeFilter, PermissionType
 from astrbot.core.utils.command_parser import CommandParserMixin
-from quart import jsonify, request
-
-# 为内置指令做额外判断
-import sys
+from quart import jsonify, request, send_file
 
 PLUGIN_NAME = "astrbot_plugin_permission-manager"
 
@@ -22,6 +20,32 @@ class PermissionManagerCommands(CommandParserMixin):
     """批量权限管理逻辑类"""
     def __init__(self, context: star.Context):
         self.context = context
+
+    def _get_plugin_metadata(self, plugin_name: str) -> Dict[str, Any]:
+        if plugin_name == "builtin_commands":
+            return {
+                "display_name": "系统内置指令",
+                "desc": "AstrBot 核心自带的系统内置管理和功能指令",
+                "author": "AstrBot",
+                "version": "内置",
+                "has_logo": False
+            }
+        for plugin in star_map.values():
+            if plugin.name == plugin_name:
+                return {
+                    "display_name": plugin.display_name or plugin.name,
+                    "desc": plugin.desc or plugin.short_desc or "暂无简介",
+                    "author": plugin.author or "未知",
+                    "version": plugin.version or "1.0.0",
+                    "has_logo": bool(plugin.logo_path and os.path.exists(plugin.logo_path))
+                }
+        return {
+            "display_name": plugin_name,
+            "desc": "暂无简介",
+            "author": "未知",
+            "version": "1.0.0",
+            "has_logo": False
+        }
 
     def _get_all_commands_by_plugin(self) -> Dict[str, List[tuple]]:
         plugin_commands = {}
@@ -58,12 +82,19 @@ class PermissionManagerCommands(CommandParserMixin):
         plugin_commands = self._get_all_commands_by_plugin()
         plugins = []
         for name, cmds in plugin_commands.items():
+            meta = self._get_plugin_metadata(name)
             plugins.append({
                 "name": name,
+                "display_name": meta["display_name"],
+                "desc": meta["desc"],
+                "author": meta["author"],
+                "version": meta["version"],
+                "has_logo": meta["has_logo"],
                 "command_count": len([c for c in cmds if c[2] == "command"]),
                 "group_count": len([c for c in cmds if c[3]]),
                 "total_commands": len(cmds)
             })
+        plugins.sort(key=lambda x: x["display_name"].lower())
         return plugins
 
     async def get_plugin_commands_api(self, plugin_name: str):
@@ -79,6 +110,7 @@ class PermissionManagerCommands(CommandParserMixin):
             cmd_cfg = plugin_cfg.get(handler.handler_name, {})
             current_perm = cmd_cfg.get("permission", "未设置")
             if current_perm == "未设置":
+                current_perm = "everyone"
                 for f in handler.event_filters:
                     if isinstance(f, PermissionTypeFilter):
                         current_perm = "admin" if f.permission_type == PermissionType.ADMIN else "member"
@@ -100,7 +132,49 @@ class PermissionManagerCommands(CommandParserMixin):
             }
             if is_group: group_list.append(info)
             else: command_list.append(info)
+            
+        command_list.sort(key=lambda x: x["name"].lower())
+        group_list.sort(key=lambda x: x["name"].lower())
         return {"commands": command_list, "groups": group_list}
+
+    async def get_all_commands_api(self):
+        plugin_commands = self._get_all_commands_by_plugin()
+        alter_cmd_cfg = await sp.global_get("alter_cmd", {})
+        
+        all_cmds = []
+        for plugin_name, cmds in plugin_commands.items():
+            plugin_cfg = alter_cmd_cfg.get(plugin_name, {})
+            meta = self._get_plugin_metadata(plugin_name)
+            
+            for handler, cmd_name, cmd_type, is_group in cmds:
+                cmd_cfg = plugin_cfg.get(handler.handler_name, {})
+                current_perm = cmd_cfg.get("permission", "未设置")
+                if current_perm == "未设置":
+                    current_perm = "everyone"
+                    for f in handler.event_filters:
+                        if isinstance(f, PermissionTypeFilter):
+                            current_perm = "admin" if f.permission_type == PermissionType.ADMIN else "member"
+                            break
+                
+                aliases = cmd_cfg.get("aliases", [])
+                if not aliases:
+                    for f in handler.event_filters:
+                        if isinstance(f, (CommandFilter, CommandGroupFilter)) and f.alias:
+                            aliases = list(f.alias); break
+
+                all_cmds.append({
+                    "plugin_name": plugin_name,
+                    "plugin_display_name": meta["display_name"],
+                    "name": cmd_cfg.get("name", cmd_name),
+                    "original_name": cmd_name,
+                    "handler": handler.handler_name,
+                    "permission": current_perm,
+                    "aliases": aliases,
+                    "desc": handler.desc or "",
+                    "is_group": is_group
+                })
+        all_cmds.sort(key=lambda x: x["name"].lower())
+        return all_cmds
 
     async def set_command_permission(self, plugin_name, handler_name, permission):
         alter_cmd_cfg = await sp.global_get("alter_cmd", {})
@@ -111,12 +185,17 @@ class PermissionManagerCommands(CommandParserMixin):
         
         for handler in star_handlers_registry:
             if handler.handler_name == handler_name:
-                target = PermissionType.ADMIN if permission == "admin" else PermissionType.MEMBER
-                found = False
-                for f in handler.event_filters:
-                    if isinstance(f, PermissionTypeFilter):
-                        f.permission_type = target; found = True; break
-                if not found: handler.event_filters.append(PermissionTypeFilter(target))
+                if permission == "everyone":
+                    # 从 handler.event_filters 中移除 PermissionTypeFilter
+                    handler.event_filters = [f for f in handler.event_filters if not isinstance(f, PermissionTypeFilter)]
+                else:
+                    target = PermissionType.ADMIN if permission == "admin" else PermissionType.MEMBER
+                    found = False
+                    for f in handler.event_filters:
+                        if isinstance(f, PermissionTypeFilter):
+                            f.permission_type = target; found = True; break
+                    if not found:
+                        handler.event_filters.append(PermissionTypeFilter(target))
                 break
         return True
 
@@ -159,6 +238,9 @@ class PermissionManagerCommands(CommandParserMixin):
                 if not found: 
                     handler.event_filters.append(PermissionTypeFilter(target))
                 applied_count += 1
+            elif permission == "everyone":
+                handler.event_filters = [f for f in handler.event_filters if not isinstance(f, PermissionTypeFilter)]
+                applied_count += 1
                 
         logger.info(f"[PermissionManager] 成功自动应用了 {applied_count} 个指令的权限配置！")
 
@@ -174,6 +256,10 @@ class Main(star.Star):
         context.register_web_api(f"/{PLUGIN_NAME}/plugin/<plugin_name>/set-permission", self.api_batch_perm, ["POST"], "批量设置权限")
         context.register_web_api(f"/{PLUGIN_NAME}/command/<plugin_name>/<handler_name>/set-name", self.api_set_name, ["POST"], "修改名称")
         context.register_web_api(f"/{PLUGIN_NAME}/command/<plugin_name>/<handler_name>/set-aliases", self.api_set_aliases, ["POST"], "设置别名")
+        
+        # 新增 API
+        context.register_web_api(f"/{PLUGIN_NAME}/commands/all", self.api_all_commands, ["GET"], "获取所有命令列表")
+        context.register_web_api(f"/{PLUGIN_NAME}/plugin/<plugin_name>/logo", self.api_plugin_logo, ["GET"], "获取插件Logo")
 
         # 启动自动加载
         asyncio.create_task(self.auto_apply_permissions())
@@ -199,6 +285,27 @@ class Main(star.Star):
             return jsonify(data)
         except Exception as e:
             return jsonify({"success": False, "message": str(e)})
+
+    async def api_all_commands(self):
+        try:
+            data = await self.perm_logic.get_all_commands_api()
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)})
+
+    async def api_plugin_logo(self, plugin_name):
+        logo_path = None
+        for plugin in star_map.values():
+            if plugin.name == plugin_name and plugin.logo_path and os.path.exists(plugin.logo_path):
+                logo_path = plugin.logo_path
+                break
+        if logo_path:
+            return await send_file(logo_path)
+        
+        default_logo = "data/plugins/astrbot_plugin_permission-manager/logo.png"
+        if os.path.exists(default_logo):
+            return await send_file(default_logo)
+        return jsonify({"success": False, "message": "No logo found"})
 
     async def api_set_perm(self, plugin_name, handler_name):
         req = await request.json

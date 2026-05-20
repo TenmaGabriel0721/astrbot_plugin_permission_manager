@@ -2,49 +2,237 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
-    <title>权限管理 - 首页</title>
+    <title>珈百璃的权限管理工坊</title>
+    <!-- 引入优秀的 CDN 和美观字体 -->
     <link href="https://cdn.jsdelivr.net/npm/bootswatch@5.3.3/dist/litera/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
-        body { padding-top: 20px; }
-        .plugin-card { cursor: pointer; transition: transform 0.2s; }
-        .plugin-card:hover { transform: translateY(-5px); }
-        .badge-count { font-size: 0.8em; }
+        body { 
+            padding-top: 30px; 
+            background: linear-gradient(135deg, #fff5f7 0%, #f3f0ff 100%); 
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        /* 顶部看板二次元粉嫩风格美化 */
+        .anime-header {
+            background: linear-gradient(135deg, #ff8ba7 0%, #c3a6ff 100%);
+            border-radius: 20px;
+            color: white;
+            box-shadow: 0 8px 32px rgba(255, 139, 167, 0.25);
+            border: 1px solid rgba(255,255,255,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .anime-header::after {
+            content: "Gabriel's Workshop";
+            position: absolute;
+            right: -20px;
+            bottom: -20px;
+            font-size: 5rem;
+            font-weight: 900;
+            color: rgba(255, 255, 255, 0.08);
+            transform: rotate(-10deg);
+            pointer-events: none;
+        }
+
+        .plugin-logo { 
+            width: 46px; 
+            height: 46px; 
+            object-fit: cover; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 8px rgba(255, 139, 167, 0.15); 
+            border: 2px solid #fff; 
+        }
+        
+        .logo-placeholder { 
+            width: 46px; 
+            height: 46px; 
+            border-radius: 12px; 
+            background: linear-gradient(135deg, #ff8ba7, #c3a6ff); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+            color: white; 
+            font-weight: bold; 
+            box-shadow: 0 4px 8px rgba(255, 139, 167, 0.15); 
+            border: 2px solid #fff;
+            font-size: 1.2rem;
+        }
+        
+        /* 卡片圆角及柔和阴影 */
+        .card {
+            border: none;
+            border-radius: 18px !important;
+            box-shadow: 0 6px 24px rgba(255, 139, 167, 0.06);
+            background-color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+        }
+        
+        .plugin-card { 
+            transition: transform 0.25s, box-shadow 0.25s; 
+            border-radius: 12px;
+        }
+        
+        .plugin-card:hover { 
+            transform: translateY(-3px) scale(1.01); 
+            box-shadow: 0 8px 24px rgba(255, 139, 167, 0.12);
+            background-color: #fffafc;
+        }
+        
+        /* 甜美粉色调按钮 */
+        .btn-primary {
+            background: linear-gradient(135deg, #ff8ba7 0%, #ff7096 100%);
+            border: none;
+            box-shadow: 0 4px 12px rgba(255, 139, 167, 0.2);
+            border-radius: 12px;
+            font-weight: 600;
+        }
+        
+        .btn-primary:hover, .btn-primary:active {
+            background: linear-gradient(135deg, #ff7096 0%, #ff527b 100%) !important;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(255, 139, 167, 0.3);
+        }
+        
+        .btn-outline-secondary {
+            border-color: #ff8ba7;
+            color: #ff7096;
+            border-radius: 12px;
+            font-weight: 500;
+            background-color: transparent;
+        }
+        
+        .btn-outline-secondary:hover {
+            background-color: #ff8ba7;
+            border-color: #ff8ba7;
+            color: #fff;
+        }
+
+        .search-area { 
+            border-radius: 14px; 
+            border: 2px solid #ffccd5; 
+            transition: all 0.25s; 
+            overflow: hidden;
+            background-color: white;
+        }
+        
+        .search-area:focus-within { 
+            border-color: #ff8ba7; 
+            box-shadow: 0 0 0 0.25rem rgba(255, 139, 167, 0.2); 
+        }
+        
+        .breadcrumb-item a { 
+            text-decoration: none; 
+            color: #ff7096; 
+            font-weight: 600; 
+        }
+        
+        .table th { 
+            font-weight: bold; 
+            font-size: 0.85rem; 
+            color: #8c7b83; 
+            border-bottom: 2px solid #ffccd5;
+        }
+        
+        .table td { 
+            vertical-align: middle; 
+        }
+        
+        /* 彩色二次元徽章 */
+        .badge-cmd { 
+            background-color: rgba(255, 139, 167, 0.15); 
+            color: #ff527b; 
+            border: 1px solid rgba(255, 139, 167, 0.25); 
+            font-weight: bold; 
+            border-radius: 6px;
+        }
+        
+        .badge-grp { 
+            background-color: rgba(195, 166, 255, 0.15); 
+            color: #8a57ff; 
+            border: 1px solid rgba(195, 166, 255, 0.25); 
+            font-weight: bold; 
+            border-radius: 6px;
+        }
+        
+        .form-select-sm {
+            border: 2px solid #ffe3e8;
+            transition: border-color 0.2s;
+        }
+        
+        .form-select-sm:focus {
+            border-color: #ff8ba7;
+            box-shadow: 0 0 0 0.2rem rgba(255, 139, 167, 0.15);
+        }
     </style>
   </head>
   <body>
-    <div class="container">
+    <div class="container pb-5">
         <div id="app">
             <!-- 视图切换：列表页 -->
             <div id="view-list">
-                <div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
-                    <div class="container-fluid py-2">
-                        <h1 class="display-6 fw-bold"><i class="fas fa-shield-lock"></i> 权限管理</h1>
-                        <p class="fs-6 text-muted">管理所有插件的命令权限，支持可视化改名、别名和权限设置。</p>
+                <div class="p-4 mb-4 anime-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 fw-bold mb-1"><i class="fas fa-magic me-2"></i> 珈百璃的权限管理工坊</h1>
+                        <p class="mb-0 opacity-90">轻松配置所有插件的指令权限，为您的服务器安全保驾护航~</p>
                     </div>
                 </div>
 
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0 text-primary"><i class="fas fa-puzzle-piece"></i> 插件列表</h5>
-                        <div class="input-group w-50">
-                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                            <input type="text" class="form-control border-start-0" id="plugin-search" placeholder="搜索插件...">
+                <!-- 搜索组件 -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body p-3">
+                        <div class="input-group search-area">
+                            <span class="input-group-text bg-white border-0"><i class="fas fa-search" style="color:#ff8ba7;"></i></span>
+                            <input type="text" class="form-control border-0" id="global-search" placeholder="输入插件名称、具体指令名或别名进行全局检索...">
+                            <button class="btn btn-outline-secondary border-0" type="button" onclick="clearSearch()"><i class="fas fa-times text-muted"></i></button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- 📌 全局指令搜索结果区域 -->
+                <div id="command-search-card" class="card shadow-sm mb-4" style="display: none; border: 2px dashed #ff8ba7;">
+                    <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0 text-primary fw-bold"><i class="fas fa-terminal me-2" style="color:#ff7096;"></i> 搜索到的相关指令</h5>
+                        <span class="badge bg-danger rounded-pill" id="search-count-badge">0 个结果</span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                            <table class="table table-hover mb-0 align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th class="ps-4">插件名</th>
-                                        <th>命令 / 指令组</th>
+                                        <th class="ps-4">指令名称 / 归属插件</th>
+                                        <th>权限限制</th>
+                                        <th class="text-end pe-4">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="search-commands-tbody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 插件列表展示 -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                        <h5 class="mb-0 fw-bold" style="color: #2b3e50;"><i class="fas fa-cubes text-muted me-2"></i> 核心及外部插件</h5>
+                        <span class="badge rounded-pill" style="background-color: #ff8ba7; color: white;" id="plugin-count-badge">0 个插件</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0 align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4" style="width: 70px;">图标</th>
+                                        <th>插件基本信息</th>
+                                        <th>指令数</th>
                                         <th class="text-end pe-4">操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="plugins-tbody">
                                     <tr>
-                                        <td colspan="3" class="text-center py-5">
+                                        <td colspan="4" class="text-center py-5">
                                             <div class="spinner-border text-primary" role="status"></div>
                                         </td>
                                     </tr>
@@ -59,28 +247,35 @@
             <div id="view-detail" style="display: none;">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="#" onclick="showListView()">插件列表</a></li>
-                        <li class="breadcrumb-item active" id="breadcrumb-plugin-name">插件详情</li>
+                        <li class="breadcrumb-item"><a href="#" onclick="showListView()"><i class="fas fa-chevron-left me-1"></i> 返回插件列表</a></li>
+                        <li class="breadcrumb-item active" id="breadcrumb-plugin-name">指令详情</li>
                     </ol>
                 </nav>
 
-                <div class="d-flex justify-content-between align-items-center mb-4">
-                    <h2 id="detail-title">插件详情</h2>
+                <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border" style="border-left: 5px solid #ff8ba7 !important;">
+                    <div class="d-flex align-items-center">
+                        <div id="detail-logo-container" class="me-3"></div>
+                        <div>
+                            <h2 class="h4 fw-bold mb-1" id="detail-title">插件指令详情</h2>
+                            <p class="text-muted mb-0" id="detail-desc">暂无描述</p>
+                        </div>
+                    </div>
                     <div class="btn-group shadow-sm">
-                        <button class="btn btn-outline-danger btn-sm" onclick="batchSet('admin')"><i class="fas fa-lock"></i> 全员管理员</button>
-                        <button class="btn btn-outline-success btn-sm" onclick="batchSet('member')"><i class="fas fa-lock-open"></i> 全员普通</button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="batchSet('admin')"><i class="fas fa-lock me-1"></i> 仅限管理员</button>
+                        <button class="btn btn-outline-success btn-sm" onclick="batchSet('member')"><i class="fas fa-shield me-1"></i> 普通及以上</button>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="batchSet('everyone')"><i class="fas fa-globe me-1"></i> 所有人开放</button>
                     </div>
                 </div>
 
                 <div class="card shadow-sm">
                     <div class="card-body p-0">
                         <div class="table-responsive">
-                            <table class="table table-hover mb-0">
+                            <table class="table table-hover mb-0 align-middle">
                                 <thead class="table-light">
                                     <tr>
-                                        <th class="ps-4">名称 / 句柄</th>
-                                        <th>权限状态</th>
-                                        <th class="text-end pe-4">配置</th>
+                                        <th class="ps-4">指令名称 / 内部句柄</th>
+                                        <th>指令权限设置</th>
+                                        <th class="text-end pe-4">快速操作</th>
                                     </tr>
                                 </thead>
                                 <tbody id="commands-tbody"></tbody>
@@ -92,23 +287,23 @@
         </div>
     </div>
 
-    <!-- 别名管理模态框 -->
+    <!-- 别名修改模态框 -->
     <div class="modal fade" id="aliasModal" tabindex="-1">
         <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">管理别名</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <div class="modal-content" style="border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                <div class="modal-header" style="background: linear-gradient(135deg, #ff8ba7, #c3a6ff); color: white;">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-tags me-2"></i> 修改别名</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="modal-body">
-                    <div id="alias-badges" class="mb-3"></div>
+                <div class="modal-body p-4">
+                    <div id="alias-badges" class="mb-3 d-flex flex-wrap gap-2"></div>
                     <div class="input-group">
-                        <input type="text" id="new-alias-input" class="form-control" placeholder="输入新别名">
-                        <button class="btn btn-primary" onclick="addAlias()">添加</button>
+                        <input type="text" id="new-alias-input" class="form-control" style="border-radius: 12px 0 0 12px; border: 2px solid #ffe3e8;" placeholder="输入新别名">
+                        <button class="btn btn-primary" style="border-radius: 0 12px 12px 0;" onclick="addAlias()">添加</button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-primary w-100" onclick="saveAliases()">保存修改</button>
+                <div class="modal-footer border-0">
+                    <button class="btn btn-primary w-100 py-2" onclick="saveAliases()">保存别名</button>
                 </div>
             </div>
         </div>
@@ -120,46 +315,78 @@
         let currentPlugin = '';
         let currentHandler = '';
         let currentAliases = [];
+        
         let pluginsData = [];
+        let allCommandsData = [];
 
         async function init() {
             await bridge.ready();
-            loadPlugins();
+            loadAllData();
         }
 
-        async function loadPlugins() {
+        async function loadAllData() {
             try {
-                const resp = await bridge.apiGet("plugins");
-                if (resp && (resp.success || Array.isArray(resp) || (resp.data && Array.isArray(resp.data)))) {
-                    pluginsData = resp.success ? resp.data : (Array.isArray(resp) ? resp : resp.data);
-                    renderPlugins(pluginsData);
-                } else {
-                    throw new Error(resp ? (resp.message || "格式错误") : "无数据");
-                }
+                const [pluginsResp, allCmdsResp] = await Promise.all([
+                    bridge.apiGet("plugins"),
+                    bridge.apiGet("commands/all")
+                ]);
+
+                pluginsData = pluginsResp.success ? pluginsResp.data : (Array.isArray(pluginsResp) ? pluginsResp : pluginsResp.data) || [];
+                allCommandsData = allCmdsResp.success ? allCmdsResp.data : (Array.isArray(allCmdsResp) ? allCmdsResp : allCmdsResp.data) || [];
+
+                document.getElementById('plugin-count-badge').textContent = `${pluginsData.length} 个插件`;
+                renderPlugins(pluginsData);
             } catch (e) {
-                document.getElementById('plugins-tbody').innerHTML = `<tr><td colspan="3" class="text-center text-danger">加载失败: ${e.message}</td></tr>`;
+                document.getElementById('plugins-tbody').innerHTML = `<tr><td colspan="4" class="text-center text-danger py-5">工盘数据载入失败: ${e.message}</td></tr>`;
             }
         }
 
         function renderPlugins(plugins) {
             const tbody = document.getElementById('plugins-tbody');
-            tbody.innerHTML = plugins.map(p => `
-                <tr>
-                    <td class="ps-4"><strong>${p.name}</strong></td>
-                    <td><span class="badge bg-info text-dark">${p.command_count} CMD</span> <span class="badge bg-secondary">${p.group_count} GRP</span></td>
-                    <td class="text-end pe-4">
-                        <button class="btn btn-link btn-sm p-0" onclick="showDetail('${p.name}')">管理权限</button>
-                    </td>
-                </tr>
-            `).join('');
+            if (plugins.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-5">没有找到匹配的插件哟</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = plugins.map(p => {
+                const logoHtml = p.has_logo 
+                    ? `<img src="/api/plug/astrbot_plugin_permission-manager/plugin/${encodeURIComponent(p.name)}/logo" class="plugin-logo" onerror="this.outerHTML='<div class=\'logo-placeholder\'>${p.display_name[0].toUpperCase()}</div>'">`
+                    : `<div class="logo-placeholder">${p.display_name[0].toUpperCase()}</div>`;
+                
+                return `
+                    <tr class="plugin-card">
+                        <td class="ps-4">${logoHtml}</td>
+                        <td>
+                            <div class="fw-bold fs-6 text-dark" style="color: #2b3e50 !important;">${p.display_name}</div>
+                            <div class="text-muted small" style="max-width: 500px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${p.desc}</div>
+                            <div class="text-muted small mt-1" style="font-size: 0.75rem;"><i class="far fa-user me-1"></i>${p.author} | <i class="fas fa-code-branch me-1"></i>v${p.version}</div>
+                        </td>
+                        <td>
+                            <span class="badge badge-cmd">${p.command_count} CMD</span>
+                            ${p.group_count > 0 ? `<span class="badge badge-grp">${p.group_count} GRP</span>` : ''}
+                        </td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-primary btn-sm px-3 shadow-sm rounded-pill" onclick="showDetail('${p.name}')"><i class="fas fa-gears me-1"></i> 管理权限</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         window.showDetail = async (name) => {
             currentPlugin = name;
             document.getElementById('view-list').style.display = 'none';
             document.getElementById('view-detail').style.display = 'block';
-            document.getElementById('breadcrumb-plugin-name').textContent = name;
-            document.getElementById('detail-title').textContent = name;
+            
+            const meta = pluginsData.find(p => p.name === name) || { display_name: name, desc: "暂无描述", has_logo: false };
+            document.getElementById('breadcrumb-plugin-name').textContent = meta.display_name;
+            document.getElementById('detail-title').textContent = meta.display_name;
+            document.getElementById('detail-desc').textContent = meta.desc;
+
+            const logoContainer = document.getElementById('detail-logo-container');
+            logoContainer.innerHTML = meta.has_logo 
+                ? `<img src="/api/plug/astrbot_plugin_permission-manager/plugin/${encodeURIComponent(name)}/logo" class="plugin-logo" style="width: 50px; height: 50px;">`
+                : `<div class="logo-placeholder" style="width: 50px; height: 50px; font-size: 1.5rem;">${meta.display_name[0].toUpperCase()}</div>`;
+
             const tbody = document.getElementById('commands-tbody');
             tbody.innerHTML = '<tr><td colspan="3" class="text-center py-5"><div class="spinner-border text-primary" role="status"></div></td></tr>';
 
@@ -169,33 +396,43 @@
                 if (!data || !data.commands) throw new Error("数据格式错误");
 
                 const all = [...(data.commands || []), ...(data.groups || [])];
-                tbody.innerHTML = all.map(c => `
+                renderCommandsTable(all, tbody);
+            } catch (e) {
+                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger py-5">插件详情载入失败: ${e.message}</td></tr>`;
+            }
+        };
+
+        function renderCommandsTable(commandsList, tbody) {
+            tbody.innerHTML = commandsList.map(c => {
+                const aliasBadges = c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('');
+                return `
                     <tr>
                         <td class="ps-4">
-                            <div class="fw-bold">${c.name}</div>
-                            <small class="text-muted">${c.handler}</small>
-                            ${c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('')}
+                            <div class="fw-bold text-dark fs-6">${c.name}</div>
+                            <small class="text-muted d-block mt-1"><i class="fas fa-terminal me-1"></i>${c.handler}</small>
+                            ${c.desc ? `<div class="text-muted small mt-1" style="font-size: 0.8rem;">${c.desc}</div>` : ''}
+                            <div class="mt-2">${aliasBadges}</div>
                         </td>
                         <td>
-                            <select class="form-select form-select-sm" onchange="setPerm('${c.handler}', this.value)" style="width: 120px;">
-                                <option value="admin" ${c.permission.includes('admin')?'selected':''}>🔒 管理员</option>
-                                <option value="member" ${c.permission.includes('member')?'selected':''}>🔓 普通成员</option>
+                            <select class="form-select form-select-sm shadow-sm" onchange="setPerm('${c.handler}', this.value)" style="width: 155px; border-radius: 10px;">
+                                <option value="everyone" ${c.permission === 'everyone' ? 'selected' : ''}>🔑 所有人均可用</option>
+                                <option value="member" ${c.permission === 'member' ? 'selected' : ''}>🔓 普通成员以上</option>
+                                <option value="admin" ${c.permission === 'admin' ? 'selected' : ''}>🔒 仅限管理员</option>
                             </select>
                         </td>
                         <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-secondary" onclick="openAliasModal('${c.handler}', ${JSON.stringify(c.aliases).replace(/"/g, '&quot;')})">别名</button>
-                            <button class="btn btn-sm btn-outline-secondary" onclick="renameCmd('${c.handler}', '${c.name}')">重命名</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="openAliasModal('${c.handler}', ${JSON.stringify(c.aliases).replace(/"/g, '&quot;')})"><i class="fas fa-tags me-1"></i> 别名</button>
+                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 ms-1" onclick="renameCmd('${c.handler}', '${c.name}')"><i class="fas fa-pen-to-square me-1"></i> 改名</button>
                         </td>
                     </tr>
-                `).join('');
-            } catch (e) {
-                tbody.innerHTML = `<tr><td colspan="3" class="text-center text-danger">详情加载失败: ${e.message}</td></tr>`;
-            }
-        };
+                `;
+            }).join('');
+        }
 
         window.showListView = () => {
             document.getElementById('view-list').style.display = 'block';
             document.getElementById('view-detail').style.display = 'none';
+            loadAllData();
         };
 
         window.setPerm = async (handler, val) => {
@@ -203,14 +440,14 @@
         };
 
         window.batchSet = async (val) => {
-            if(confirm(`确定要将 ${currentPlugin} 的所有权限设置为 ${val} 吗？`)) {
+            if(confirm(`确定要把当前插件的所有指令权限批量修改为 [${val}] 吗？`)) {
                 await bridge.apiPost(`plugin/${encodeURIComponent(currentPlugin)}/set-permission`, { permission: val });
                 showDetail(currentPlugin);
             }
         };
 
         window.renameCmd = async (handler, old) => {
-            const n = prompt("输入新名称", old);
+            const n = prompt("输入指令的新名称：", old);
             if(n && n !== old) {
                 await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(handler)}/set-name`, { name: n });
                 showDetail(currentPlugin);
@@ -241,14 +478,83 @@
 
         function renderAliasBadges() {
             document.getElementById('alias-badges').innerHTML = currentAliases.map((a, i) => `
-                <span class="badge bg-secondary me-1 p-2">${a} <i class="fas fa-times ms-1" style="cursor:pointer" onclick="currentAliases.splice(${i},1);renderAliasBadges()"></i></span>
+                <span class="badge bg-secondary p-2 d-inline-flex align-items-center gap-1" style="background-color: #ff8ba7 !important; border-radius: 8px;">${a} <i class="fas fa-times" style="cursor:pointer" onclick="currentAliases.splice(${i},1);renderAliasBadges()"></i></span>
             `).join('');
         }
 
-        document.getElementById('plugin-search').addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            renderPlugins(pluginsData.filter(p => p.name.toLowerCase().includes(term)));
+        // 🌟 跨插件全局搜索核心机制
+        document.getElementById('global-search').addEventListener('input', (e) => {
+            const term = e.target.value.trim().toLowerCase();
+            if (!term) {
+                clearSearch();
+                return;
+            }
+
+            // 1. 过滤插件
+            const filteredPlugins = pluginsData.filter(p => 
+                p.name.toLowerCase().includes(term) || 
+                p.display_name.toLowerCase().includes(term) || 
+                p.desc.toLowerCase().includes(term)
+            );
+            renderPlugins(filteredPlugins);
+
+            // 2. 全局搜索指令
+            const filteredCommands = allCommandsData.filter(c => 
+                c.name.toLowerCase().includes(term) || 
+                c.original_name.toLowerCase().includes(term) || 
+                c.handler.toLowerCase().includes(term) || 
+                c.desc.toLowerCase().includes(term) || 
+                c.aliases.some(a => a.toLowerCase().includes(term))
+            );
+
+            const searchCard = document.getElementById('command-search-card');
+            const searchTbody = document.getElementById('search-commands-tbody');
+            const countBadge = document.getElementById('search-count-badge');
+
+            if (filteredCommands.length > 0) {
+                searchCard.style.display = 'block';
+                countBadge.textContent = `${filteredCommands.length} 个指令`;
+                searchTbody.innerHTML = filteredCommands.map(c => `
+                    <tr>
+                        <td class="ps-4">
+                            <div class="fw-bold text-dark fs-6">${c.name}</div>
+                            <small class="text-muted"><i class="fas fa-terminal me-1"></i>${c.handler}</small>
+                            <span class="badge rounded-pill ms-2" style="background-color:#c3a6ff; color:#fff;">${c.plugin_display_name}</span>
+                            ${c.desc ? `<div class="text-muted small mt-1" style="font-size: 0.8rem;">${c.desc}</div>` : ''}
+                            <div class="mt-2">${c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('')}</div>
+                        </td>
+                        <td>
+                            <select class="form-select form-select-sm shadow-sm" onchange="setGlobalPerm('${c.plugin_name}', '${c.handler}', this.value)" style="width: 155px; border-radius: 10px;">
+                                <option value="everyone" ${c.permission === 'everyone' ? 'selected' : ''}>🔑 所有人均可用</option>
+                                <option value="member" ${c.permission === 'member' ? 'selected' : ''}>🔓 普通成员以上</option>
+                                <option value="admin" ${c.permission === 'admin' ? 'selected' : ''}>🔒 仅限管理员</option>
+                            </select>
+                        </td>
+                        <td class="text-end pe-4">
+                            <button class="btn btn-sm btn-outline-primary rounded-pill px-3" onclick="jumpToPlugin('${c.plugin_name}')"><i class="fas fa-external-link-alt me-1"></i> 跳转到所属插件</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } else {
+                searchCard.style.display = 'none';
+            }
         });
+
+        window.setGlobalPerm = async (pluginName, handler, val) => {
+            await bridge.apiPost(`command/${encodeURIComponent(pluginName)}/${encodeURIComponent(handler)}/set-permission`, { permission: val });
+            const found = allCommandsData.find(c => c.plugin_name === pluginName && c.handler === handler);
+            if (found) found.permission = val;
+        };
+
+        window.jumpToPlugin = (pluginName) => {
+            showDetail(pluginName);
+        };
+
+        window.clearSearch = () => {
+            document.getElementById('global-search').value = '';
+            document.getElementById('command-search-card').style.display = 'none';
+            renderPlugins(pluginsData);
+        };
 
         init();
     </script>
