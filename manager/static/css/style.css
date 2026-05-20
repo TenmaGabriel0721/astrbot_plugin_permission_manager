@@ -1,0 +1,32 @@
+body {
+    padding-top: 70px;
+}
+
+.dashboard-card {
+    text-decoration: none;
+    color: inherit;
+}
+
+.dashboard-card:hover {
+    text-decoration: none;
+    color: inherit;
+    transform: translateY(-5px);
+    transition: transform 0.2s;
+}
+
+.card {
+    margin-bottom: 20px;
+}
+
+.table-hover tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+.badge {
+    font-size: 0.875em;
+}
+
+.btn-sm {
+    margin: 2px;
+}
+

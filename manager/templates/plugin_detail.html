@@ -1,0 +1,502 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ plugin_name }} - 权限管理{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-puzzle-piece"></i> {{ plugin_name }}</h2>
+        <p class="text-muted">管理该插件的所有命令权限</p>
+    </div>
+    <div>
+        <button class="btn btn-danger me-2" onclick="batchSetPermission('admin')">
+            <i class="fas fa-lock"></i> 全部设为管理员
+        </button>
+        <button class="btn btn-success" onclick="batchSetPermission('member')">
+            <i class="fas fa-lock-open"></i> 全部设为成员
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="command-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="commands-tab" data-bs-toggle="tab" data-bs-target="#commands" type="button" role="tab">
+                    命令 (<span id="command-count">0</span>)
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="groups-tab" data-bs-toggle="tab" data-bs-target="#groups" type="button" role="tab">
+                    指令组 (<span id="group-count">0</span>)
+                </button>
+            </li>
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="command-tab-content">
+            <div class="tab-pane fade show active" id="commands" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>命令名</th>
+                                <th>别名</th>
+                                <th>描述</th>
+                                <th>当前权限</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="commands-tbody">
+                            <tr>
+                                <td colspan="5" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">加载中...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="groups" role="tabpanel">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>指令组名</th>
+                                <th>别名</th>
+                                <th>描述</th>
+                                <th>当前权限</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="groups-tbody">
+                            <tr>
+                                <td colspan="5" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">加载中...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-3">
+    <a href="{{ url_for('admin_bp.index') }}" class="btn btn-secondary">
+        <i class="fas fa-arrow-left"></i> 返回插件列表
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const pluginName = '{{ plugin_name }}';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadPluginCommands();
+});
+
+async function loadPluginCommands() {
+    try {
+        const response = await fetch(`/admin/api/plugin/${encodeURIComponent(pluginName)}/commands`);
+        const result = await response.json();
+        
+        if (result.success) {
+            displayCommands(result.data);
+        } else {
+            showError('加载命令列表失败: ' + result.message);
+        }
+    } catch (error) {
+        showError('加载命令列表失败: ' + error.message);
+    }
+}
+
+function displayCommands(data) {
+    const commands = data.commands || [];
+    const groups = data.groups || [];
+    
+    // 更新计数
+    document.getElementById('command-count').textContent = commands.length;
+    document.getElementById('group-count').textContent = groups.length;
+    
+    // 显示命令
+    const commandsTbody = document.getElementById('commands-tbody');
+    commandsTbody.innerHTML = '';
+    
+    if (commands.length === 0) {
+        commandsTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">没有命令</td></tr>';
+    } else {
+        commands.forEach(cmd => {
+            const row = document.createElement('tr');
+            // 将别名数据存储到 data 属性中
+            const aliasesData = JSON.stringify(cmd.aliases || []);
+            row.innerHTML = `
+                <td><strong>${escapeHtml(cmd.name)}</strong></td>
+                <td>${getAliasesDisplay(cmd.aliases || [])}</td>
+                <td>${escapeHtml(cmd.desc || '')}</td>
+                <td>${getPermissionBadge(cmd.permission)}</td>
+                <td>
+                    ${getPermissionButtons(cmd, 'command')}
+                    <button class="btn btn-sm btn-info ms-1" onclick="editCommandName('${escapeHtml(cmd.handler).replace(/'/g, "\\'")}', '${escapeHtml(cmd.name).replace(/'/g, "\\'")}')">
+                        <i class="fas fa-edit"></i> 改名
+                    </button>
+                    <button class="btn btn-sm btn-warning ms-1" data-handler="${escapeHtml(cmd.handler)}" data-aliases='${aliasesData.replace(/'/g, "&#39;")}' onclick="editCommandAliasesFromButton(this)">
+                        <i class="fas fa-tags"></i> 别名
+                    </button>
+                </td>
+            `;
+            commandsTbody.appendChild(row);
+        });
+    }
+    
+    // 显示指令组
+    const groupsTbody = document.getElementById('groups-tbody');
+    groupsTbody.innerHTML = '';
+    
+    if (groups.length === 0) {
+        groupsTbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">没有指令组</td></tr>';
+    } else {
+        groups.forEach(group => {
+            const row = document.createElement('tr');
+            // 将别名数据存储到 data 属性中
+            const aliasesData = JSON.stringify(group.aliases || []);
+            row.innerHTML = `
+                <td><strong>${escapeHtml(group.name)}</strong></td>
+                <td>${getAliasesDisplay(group.aliases || [])}</td>
+                <td>${escapeHtml(group.desc || '')}</td>
+                <td>${getPermissionBadge(group.permission)}</td>
+                <td>
+                    ${getPermissionButtons(group, 'group')}
+                    <button class="btn btn-sm btn-info ms-1" onclick="editCommandName('${escapeHtml(group.handler).replace(/'/g, "\\'")}', '${escapeHtml(group.name).replace(/'/g, "\\'")}')">
+                        <i class="fas fa-edit"></i> 改名
+                    </button>
+                    <button class="btn btn-sm btn-warning ms-1" data-handler="${escapeHtml(group.handler)}" data-aliases='${aliasesData.replace(/'/g, "&#39;")}' onclick="editCommandAliasesFromButton(this)">
+                        <i class="fas fa-tags"></i> 别名
+                    </button>
+                </td>
+            `;
+            groupsTbody.appendChild(row);
+        });
+    }
+}
+
+function getPermissionBadge(permission) {
+    const isAdmin = permission === 'admin' || (typeof permission === 'string' && permission.includes('admin'));
+    return isAdmin 
+        ? '<span class="badge bg-danger"><i class="fas fa-lock"></i> 管理员</span>'
+        : '<span class="badge bg-success"><i class="fas fa-lock-open"></i> 成员</span>';
+}
+
+function getPermissionButtons(item, type) {
+    const isAdmin = item.permission === 'admin' || (typeof item.permission === 'string' && item.permission.includes('admin'));
+    return `
+        <button class="btn btn-sm btn-danger ${isAdmin ? 'disabled' : ''}" 
+                onclick="setCommandPermission('${escapeHtml(item.handler)}', 'admin')" 
+                ${isAdmin ? 'disabled' : ''}>
+            <i class="fas fa-lock"></i> 设为管理员
+        </button>
+        <button class="btn btn-sm btn-success ${!isAdmin ? 'disabled' : ''}" 
+                onclick="setCommandPermission('${escapeHtml(item.handler)}', 'member')" 
+                ${!isAdmin ? 'disabled' : ''}>
+            <i class="fas fa-lock-open"></i> 设为成员
+        </button>
+    `;
+}
+
+function getAliasesDisplay(aliases) {
+    if (!aliases || aliases.length === 0) {
+        return '<span class="text-muted">无</span>';
+    }
+    return aliases.map(alias => `<span class="badge bg-secondary me-1">${escapeHtml(alias)}</span>`).join('');
+}
+
+function getCommandEditButtons(item) {
+    // 将别名数组转换为安全的 JSON 字符串，并转义特殊字符
+    const aliasesJson = JSON.stringify(item.aliases || []).replace(/"/g, '&quot;').replace(/'/g, "&#39;");
+    const handlerEscaped = escapeHtml(item.handler).replace(/'/g, "\\'");
+    return `
+        <button class="btn btn-sm btn-info ms-1" onclick="editCommandName('${handlerEscaped}', '${escapeHtml(item.name).replace(/'/g, "\\'")}')">
+            <i class="fas fa-edit"></i> 改名
+        </button>
+        <button class="btn btn-sm btn-warning ms-1" onclick="editCommandAliases('${handlerEscaped}', '${aliasesJson}')">
+            <i class="fas fa-tags"></i> 别名
+        </button>
+    `;
+}
+
+async function batchSetPermission(permission) {
+    if (!confirm(`确定要将插件 ${pluginName} 的所有命令设置为 ${permission === 'admin' ? '管理员' : '成员'} 权限吗？`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/api/plugin/${encodeURIComponent(pluginName)}/set-permission`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ permission: permission })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('批量设置成功: ' + result.message);
+            loadPluginCommands();
+        } else {
+            alert('设置失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('设置失败: ' + error.message);
+    }
+}
+
+async function setCommandPermission(handlerName, permission) {
+    try {
+        const response = await fetch(`/admin/api/command/${encodeURIComponent(pluginName)}/${encodeURIComponent(handlerName)}/set-permission`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ permission: permission })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('权限设置成功');
+            loadPluginCommands();
+        } else {
+            alert('设置失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('设置失败: ' + error.message);
+    }
+}
+
+function showError(message) {
+    const tbody = document.getElementById('commands-tbody');
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${escapeHtml(message)}</td></tr>`;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function editCommandName(handlerName, currentName) {
+    const newName = prompt(`请输入新的命令名：`, currentName);
+    if (!newName || newName === currentName) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/admin/api/command/${encodeURIComponent(pluginName)}/${encodeURIComponent(handlerName)}/set-name`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ name: newName })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('命令名修改成功');
+            loadPluginCommands();
+        } else {
+            alert('修改失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('修改失败: ' + error.message);
+    }
+}
+
+function editCommandAliasesFromButton(button) {
+    const handlerName = button.getAttribute('data-handler');
+    const aliasesData = button.getAttribute('data-aliases');
+    let aliases = [];
+    
+    try {
+        // 还原 HTML 实体
+        const cleanData = aliasesData.replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+        aliases = JSON.parse(cleanData);
+    } catch (e) {
+        console.error('解析别名数据失败:', e, '原始数据:', aliasesData);
+        aliases = [];
+    }
+    
+    if (!Array.isArray(aliases)) {
+        aliases = [];
+    }
+    
+    editCommandAliases(handlerName, aliases);
+}
+
+async function editCommandAliases(handlerName, currentAliases) {
+    // 确保 currentAliases 是数组
+    let aliases = currentAliases;
+    
+    if (!Array.isArray(aliases)) {
+        aliases = [];
+    }
+    
+    // 创建一个模态对话框来管理别名
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.setAttribute('tabindex', '-1');
+    modal.setAttribute('aria-labelledby', 'aliasesModalLabel');
+    modal.setAttribute('aria-hidden', 'true');
+    const modalId = 'aliases-modal-' + Date.now();
+    modal.id = modalId;
+    modal.innerHTML = `
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="aliasesModalLabel">管理别名</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">当前别名：</label>
+                        <div id="aliases-list-${modalId}" class="mb-2 p-2 border rounded" style="min-height: 50px;"></div>
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="new-alias-input-${modalId}" placeholder="输入新别名">
+                            <button class="btn btn-primary" type="button" onclick="addAliasToList('${modalId}')">添加</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveAliases('${escapeHtml(handlerName)}', '${modalId.replace(/'/g, "\\'")}')">保存</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    const modalInstance = new bootstrap.Modal(modal);
+    
+    // 初始化别名列表 - 使用深拷贝
+    window[`aliases_${modalId}`] = JSON.parse(JSON.stringify(aliases));
+    window[`handlerName_${modalId}`] = handlerName;
+    
+    // 等待模态框显示后再渲染列表
+    modal.addEventListener('shown.bs.modal', function () {
+        renderAliasesList(modalId);
+        // 聚焦到输入框并绑定回车键
+        const input = document.getElementById(`new-alias-input-${modalId}`);
+        if (input) {
+            input.focus();
+            input.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    addAliasToList(modalId);
+                }
+            });
+        }
+    });
+    
+    modal.addEventListener('hidden.bs.modal', function () {
+        document.body.removeChild(modal);
+        delete window[`aliases_${modalId}`];
+        delete window[`handlerName_${modalId}`];
+    });
+    
+    modalInstance.show();
+}
+
+function renderAliasesList(modalId) {
+    const listDiv = document.getElementById(`aliases-list-${modalId}`);
+    if (!listDiv) return;
+    
+    const aliases = window[`aliases_${modalId}`] || [];
+    
+    if (aliases.length === 0) {
+        listDiv.innerHTML = '<p class="text-muted">暂无别名</p>';
+        return;
+    }
+    
+    listDiv.innerHTML = aliases.map((alias, index) => {
+        const safeModalId = modalId.replace(/'/g, "\\'");
+        return `
+        <span class="badge bg-secondary me-2 mb-2" style="font-size: 1em; padding: 0.5em;">
+            ${escapeHtml(alias)}
+            <button type="button" class="btn-close btn-close-white ms-2" style="font-size: 0.7em;" onclick="removeAliasFromList('${safeModalId}', ${index})"></button>
+        </span>
+    `;
+    }).join('');
+}
+
+function addAliasToList(modalId) {
+    const input = document.getElementById(`new-alias-input-${modalId}`);
+    if (!input) return;
+    
+    const newAlias = input.value.trim();
+    
+    if (!newAlias) {
+        alert('请输入别名');
+        return;
+    }
+    
+    const aliases = window[`aliases_${modalId}`] || [];
+    
+    if (aliases.includes(newAlias)) {
+        alert('别名已存在');
+        return;
+    }
+    
+    aliases.push(newAlias);
+    window[`aliases_${modalId}`] = aliases;
+    input.value = '';
+    renderAliasesList(modalId);
+}
+
+function removeAliasFromList(modalId, index) {
+    const aliases = window[`aliases_${modalId}`] || [];
+    aliases.splice(index, 1);
+    window[`aliases_${modalId}`] = aliases;
+    renderAliasesList(modalId);
+}
+
+async function saveAliases(handlerName, modalId) {
+    const aliases = window[`aliases_${modalId}`] || [];
+    
+    try {
+        const response = await fetch(`/admin/api/command/${encodeURIComponent(pluginName)}/${encodeURIComponent(handlerName)}/set-aliases`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ aliases: aliases })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            // 关闭模态框
+            const modal = document.getElementById(`aliases-modal-${modalId}`);
+            if (modal) {
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+            }
+            alert('别名设置成功');
+            loadPluginCommands();
+        } else {
+            alert('设置失败: ' + result.message);
+        }
+    } catch (error) {
+        alert('设置失败: ' + error.message);
+    }
+}
+</script>
+{% endblock %}
+
