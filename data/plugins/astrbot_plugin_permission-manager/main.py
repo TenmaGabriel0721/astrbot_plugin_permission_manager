@@ -13,6 +13,9 @@ from astrbot.core.star.filter.permission import PermissionTypeFilter, Permission
 from astrbot.core.utils.command_parser import CommandParserMixin
 from quart import jsonify, request
 
+# 为内置指令做额外判断
+import sys
+
 PLUGIN_NAME = "astrbot_plugin_permission-manager"
 
 class PermissionManagerCommands(CommandParserMixin):
@@ -24,16 +27,30 @@ class PermissionManagerCommands(CommandParserMixin):
         plugin_commands = {}
         for handler in star_handlers_registry:
             assert isinstance(handler, StarHandlerMetadata)
-            if handler.handler_module_path not in star_map: continue
-            plugin = star_map[handler.handler_module_path]
-            if not plugin.activated: continue
-            if plugin.name not in plugin_commands: plugin_commands[plugin.name] = []
+            
+            # 判断内置命令或外部插件
+            plugin_name = None
+            if handler.handler_module_path in star_map:
+                plugin = star_map[handler.handler_module_path]
+                if not plugin.activated: continue
+                plugin_name = plugin.name
+            elif "builtin" in handler.handler_module_path:
+                plugin_name = "builtin_commands"
+            else:
+                parts = handler.handler_module_path.split('.')
+                if len(parts) >= 3 and parts[0] == "data" and parts[1] == "plugins":
+                    plugin_name = parts[2]
+                else:
+                    plugin_name = "builtin_commands"
+                    
+            if plugin_name not in plugin_commands: plugin_commands[plugin_name] = []
+            
             for event_filter in handler.event_filters:
                 if isinstance(event_filter, CommandFilter):
-                    plugin_commands[plugin.name].append((handler, event_filter.command_name, "command", False))
+                    plugin_commands[plugin_name].append((handler, event_filter.command_name, "command", False))
                     break
                 elif isinstance(event_filter, CommandGroupFilter):
-                    plugin_commands[plugin.name].append((handler, event_filter.group_name, "command_group", True))
+                    plugin_commands[plugin_name].append((handler, event_filter.group_name, "command_group", True))
                     break
         return plugin_commands
 
@@ -103,6 +120,48 @@ class PermissionManagerCommands(CommandParserMixin):
                 break
         return True
 
+    async def apply_all_permissions(self):
+        alter_cmd_cfg = await sp.global_get("alter_cmd", {})
+        if not alter_cmd_cfg: return
+        
+        logger.info("[PermissionManager] 正在自动应用已保存的指令权限配置...")
+        applied_count = 0
+        
+        for handler in star_handlers_registry:
+            assert isinstance(handler, StarHandlerMetadata)
+            
+            # 判断 handler 属于哪个插件
+            plugin_name = None
+            if handler.handler_module_path in star_map:
+                plugin_name = star_map[handler.handler_module_path].name
+            elif "builtin" in handler.handler_module_path:
+                plugin_name = "builtin_commands"
+            else:
+                parts = handler.handler_module_path.split('.')
+                if len(parts) >= 3 and parts[0] == "data" and parts[1] == "plugins":
+                    plugin_name = parts[2]
+                else:
+                    plugin_name = "builtin_commands"
+            
+            if not plugin_name:
+                continue
+                
+            plugin_cfg = alter_cmd_cfg.get(plugin_name, {})
+            cmd_cfg = plugin_cfg.get(handler.handler_name, {})
+            permission = cmd_cfg.get("permission")
+            
+            if permission in ["admin", "member"]:
+                target = PermissionType.ADMIN if permission == "admin" else PermissionType.MEMBER
+                found = False
+                for f in handler.event_filters:
+                    if isinstance(f, PermissionTypeFilter):
+                        f.permission_type = target; found = True; break
+                if not found: 
+                    handler.event_filters.append(PermissionTypeFilter(target))
+                applied_count += 1
+                
+        logger.info(f"[PermissionManager] 成功自动应用了 {applied_count} 个指令的权限配置！")
+
 class Main(star.Star):
     def __init__(self, context: star.Context, config: Any = None):
         super().__init__(context)
@@ -115,6 +174,17 @@ class Main(star.Star):
         context.register_web_api(f"/{PLUGIN_NAME}/plugin/<plugin_name>/set-permission", self.api_batch_perm, ["POST"], "批量设置权限")
         context.register_web_api(f"/{PLUGIN_NAME}/command/<plugin_name>/<handler_name>/set-name", self.api_set_name, ["POST"], "修改名称")
         context.register_web_api(f"/{PLUGIN_NAME}/command/<plugin_name>/<handler_name>/set-aliases", self.api_set_aliases, ["POST"], "设置别名")
+
+        # 启动自动加载
+        asyncio.create_task(self.auto_apply_permissions())
+
+    async def auto_apply_permissions(self):
+        # 稍微等下其他插件注册完毕
+        await asyncio.sleep(3.0)
+        try:
+            await self.perm_logic.apply_all_permissions()
+        except Exception as e:
+            logger.error(f"[PermissionManager] 自动加载应用权限时发生错误: {e}")
 
     async def api_list_plugins(self):
         try:
