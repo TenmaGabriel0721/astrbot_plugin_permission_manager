@@ -166,7 +166,30 @@
             border-color: #ff8ba7;
             box-shadow: 0 0 0 0.2rem rgba(255, 139, 167, 0.15);
         }
-    </style>
+    
+        /* 选项卡按钮 */
+        .nav-pills .nav-link.active {
+            background: linear-gradient(135deg, #ff8ba7 0%, #c3a6ff 100%) !important;
+            color: white !important;
+            box-shadow: 0 4px 12px rgba(255, 139, 167, 0.25);
+        }
+        .nav-pills .nav-link:not(.active) {
+            color: #6c757d !important;
+        }
+        .nav-pills .nav-link:not(.active):hover {
+            background-color: #ffeef2 !important;
+            color: #ff7096 !important;
+        }
+        .tool-type-badge {
+            font-size: 0.75rem;
+            padding: 0.2rem 0.6rem;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .badge-builtin { background-color: #e9ecef; color: #495057; }
+        .badge-plugin { background-color: #fff0f3; color: #ff4d6d; }
+        .badge-mcp { background-color: #f3f0ff; color: #7048e8; }
+</style>
   </head>
   <body>
     <div class="container pb-5">
@@ -180,8 +203,19 @@
                     </div>
                 </div>
 
+                <!-- 选项卡导航 -->
+                <ul class="nav nav-pills mb-4 gap-2 p-1 bg-white rounded-pill shadow-sm border" style="max-width: fit-content;">
+                    <li class="nav-item">
+                        <button class="nav-link active rounded-pill px-4" id="tab-btn-commands" onclick="switchTab('commands')"><i class="fas fa-terminal me-2"></i> 指令权限管理</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link rounded-pill px-4" id="tab-btn-tools" onclick="switchTab('tools')"><i class="fas fa-screwdriver-wrench me-2"></i> 函数工具管理</button>
+                    </li>
+                </ul>
+
+
                 <!-- 搜索组件 -->
-                <div class="card shadow-sm mb-4">
+                <div class="card shadow-sm mb-4" id="commands-search-input-card">
                     <div class="card-body p-3">
                         <div class="input-group search-area">
                             <span class="input-group-text bg-white border-0"><i class="fas fa-search" style="color:#ff8ba7;"></i></span>
@@ -214,7 +248,7 @@
                 </div>
 
                 <!-- 插件列表展示 -->
-                <div class="card shadow-sm">
+                <div class="card shadow-sm" id="plugins-list-card">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
                         <h5 class="mb-0 fw-bold" style="color: #2b3e50;"><i class="fas fa-cubes text-muted me-2"></i> 核心及外部插件</h5>
                         <span class="badge rounded-pill" style="background-color: #ff8ba7; color: white;" id="plugin-count-badge">0 个插件</span>
@@ -243,7 +277,50 @@
                 </div>
             </div>
 
-            <!-- 视图切换：详情页 -->
+            
+                <!-- 函数工具管理面板 -->
+                <div id="tools-card" style="display: none;">
+                    <!-- 工具搜索组件 -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-body p-3">
+                            <div class="input-group search-area">
+                                <span class="input-group-text bg-white border-0"><i class="fas fa-search" style="color:#c3a6ff;"></i></span>
+                                <input type="text" class="form-control border-0" id="tool-search" placeholder="输入工具名称或描述进行检索..." oninput="filterTools()">
+                                <button class="btn btn-outline-secondary border-0" type="button" onclick="clearToolSearch()"><i class="fas fa-times text-muted"></i></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 工具列表展示 -->
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center border-bottom">
+                            <h5 class="mb-0 fw-bold" style="color: #2b3e50;"><i class="fas fa-screwdriver-wrench text-muted me-2"></i> 已加载的函数工具 (Tools)</h5>
+                            <span class="badge rounded-pill" style="background-color: #c3a6ff; color: white;" id="tool-count-badge">0 个工具</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0 align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th class="ps-4">工具名称 / 描述</th>
+                                            <th>工具类型</th>
+                                            <th class="text-end pe-4" style="width: 150px;">状态控制</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="tools-tbody">
+                                        <tr>
+                                            <td colspan="3" class="text-center py-5">
+                                                <div class="spinner-border text-primary" role="status"></div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 视图切换：详情页 -->
             <div id="view-detail" style="display: none;">
                 <nav aria-label="breadcrumb" class="mb-4">
                     <ol class="breadcrumb">
@@ -311,6 +388,103 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script type="module">
+        let allToolsData = [];
+
+        window.switchTab = (tab) => {
+            const commandsSearch = document.getElementById('commands-search-input-card');
+            const searchResult = document.getElementById('command-search-card');
+            const pluginsList = document.getElementById('plugins-list-card');
+            const toolsCard = document.getElementById('tools-card');
+            
+            if (tab === 'commands') {
+                if (commandsSearch) commandsSearch.style.display = 'block';
+                // Only show search result card if it actually had elements visible before
+                if (document.getElementById('search-commands-tbody').children.length > 0) {
+                    if (searchResult) searchResult.style.display = 'block';
+                }
+                if (pluginsList) pluginsList.style.display = 'block';
+                if (toolsCard) toolsCard.style.display = 'none';
+                
+                document.getElementById('tab-btn-commands').classList.add('active');
+                document.getElementById('tab-btn-tools').classList.remove('active');
+            } else {
+                if (commandsSearch) commandsSearch.style.display = 'none';
+                if (searchResult) searchResult.style.display = 'none';
+                if (pluginsList) pluginsList.style.display = 'none';
+                if (toolsCard) toolsCard.style.display = 'block';
+                
+                document.getElementById('tab-btn-commands').classList.remove('active');
+                document.getElementById('tab-btn-tools').classList.add('active');
+                
+                if (allToolsData.length === 0) loadToolsData();
+            }
+        };
+
+        async function loadToolsData() {
+            try {
+                const resp = await bridge.apiGet("tools/all");
+                allToolsData = resp.success ? resp.data : (Array.isArray(resp) ? resp : resp.data) || [];
+                renderTools(allToolsData);
+            } catch (e) {
+                document.getElementById('tools-tbody').innerHTML = `<tr><td colspan="3" class="text-center text-danger py-5">工具载入失败: ${e.message}</td></tr>`;
+            }
+        }
+
+        function renderTools(tools) {
+            const tbody = document.getElementById('tools-tbody');
+            document.getElementById('tool-count-badge').textContent = `${tools.length} 个工具`;
+            
+            if (tools.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center py-5 text-muted">未找到匹配的函数工具</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = tools.map(t => `
+                <tr>
+                    <td class="ps-4">
+                        <div class="fw-bold text-dark fs-6">${t.name}</div>
+                        <div class="text-muted small mt-1" style="font-size: 0.85rem;">${t.desc || '无描述'}</div>
+                    </td>
+                    <td>
+                        <span class="tool-type-badge badge-${t.type}">${t.type === 'builtin' ? '内置系统' : (t.type === 'mcp' ? '外部协议' : '插件工具')}</span>
+                    </td>
+                    <td class="text-end pe-4">
+                        <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input" type="checkbox" ${t.active ? 'checked' : ''} onchange="setToolActive('${t.name}', this.checked)" style="cursor: pointer; width: 40px; height: 20px;">
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        window.setToolActive = async (name, active) => {
+            try {
+                const res = await bridge.apiPost(`tools/${encodeURIComponent(name)}/set-active`, { active });
+                if (res.success) {
+                    const found = allToolsData.find(t => t.name === name);
+                    if (found) found.active = active;
+                } else {
+                    alert('操作失败: ' + res.message);
+                }
+            } catch (e) {
+                alert('请求出错: ' + e.message);
+            }
+        };
+
+        window.filterTools = () => {
+            const term = document.getElementById('tool-search').value.trim().toLowerCase();
+            const filtered = allToolsData.filter(t => 
+                t.name.toLowerCase().includes(term) || 
+                (t.desc && t.desc.toLowerCase().includes(term))
+            );
+            renderTools(filtered);
+        };
+
+        window.clearToolSearch = () => {
+            document.getElementById('tool-search').value = '';
+            renderTools(allToolsData);
+        };
+
         const bridge = window.AstrBotPluginPage;
         let currentPlugin = '';
         let currentHandler = '';
@@ -349,7 +523,7 @@
             }
             tbody.innerHTML = plugins.map(p => {
                 const logoHtml = p.has_logo 
-                    ? `<img src="/api/plug/astrbot_plugin_permission-manager/plugin/${encodeURIComponent(p.name)}/logo" class="plugin-logo" onerror="this.outerHTML='<div class=\'logo-placeholder\'>${p.display_name[0].toUpperCase()}</div>'">`
+                    ? `<img src="/api/plugins/astrbot_plugin_permission-manager/plugin/${encodeURIComponent(p.name)}/logo" class="plugin-logo" onerror="this.outerHTML='<div class=\'logo-placeholder\'>${p.display_name[0].toUpperCase()}</div>'">`
                     : `<div class="logo-placeholder">${p.display_name[0].toUpperCase()}</div>`;
                 
                 return `
@@ -384,7 +558,7 @@
 
             const logoContainer = document.getElementById('detail-logo-container');
             logoContainer.innerHTML = meta.has_logo 
-                ? `<img src="/api/plug/astrbot_plugin_permission-manager/plugin/${encodeURIComponent(name)}/logo" class="plugin-logo" style="width: 50px; height: 50px;">`
+                ? `<img src="/api/plugins/astrbot_plugin_permission-manager/plugin/${encodeURIComponent(name)}/logo" class="plugin-logo" style="width: 50px; height: 50px;">`
                 : `<div class="logo-placeholder" style="width: 50px; height: 50px; font-size: 1.5rem;">${meta.display_name[0].toUpperCase()}</div>`;
 
             const tbody = document.getElementById('commands-tbody');
@@ -414,7 +588,7 @@
                             <div class="mt-2">${aliasBadges}</div>
                         </td>
                         <td>
-                            <select class="form-select form-select-sm shadow-sm" onchange="setPerm('${c.handler}', this.value)" style="width: 155px; border-radius: 10px;">
+                            <select class="form-select form-select-sm shadow-sm" onchange="setPerm('${c.handler}', this.value)" style="width: 180px; border-radius: 10px;">
                                 <option value="everyone" ${c.permission === 'everyone' ? 'selected' : ''}>🔑 所有人均可用</option>
                                 <option value="member" ${c.permission === 'member' ? 'selected' : ''}>🔓 普通成员以上</option>
                                 <option value="admin" ${c.permission === 'admin' ? 'selected' : ''}>🔒 仅限管理员</option>
@@ -440,10 +614,8 @@
         };
 
         window.batchSet = async (val) => {
-            if(confirm(`确定要把当前插件的所有指令权限批量修改为 [${val}] 吗？`)) {
-                await bridge.apiPost(`plugin/${encodeURIComponent(currentPlugin)}/set-permission`, { permission: val });
-                showDetail(currentPlugin);
-            }
+            await bridge.apiPost(`plugin/${encodeURIComponent(currentPlugin)}/set-permission`, { permission: val });
+            showDetail(currentPlugin);
         };
 
         window.renameCmd = async (handler, old) => {
@@ -524,7 +696,7 @@
                             <div class="mt-2">${c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('')}</div>
                         </td>
                         <td>
-                            <select class="form-select form-select-sm shadow-sm" onchange="setGlobalPerm('${c.plugin_name}', '${c.handler}', this.value)" style="width: 155px; border-radius: 10px;">
+                            <select class="form-select form-select-sm shadow-sm" onchange="setGlobalPerm('${c.plugin_name}', '${c.handler}', this.value)" style="width: 180px; border-radius: 10px;">
                                 <option value="everyone" ${c.permission === 'everyone' ? 'selected' : ''}>🔑 所有人均可用</option>
                                 <option value="member" ${c.permission === 'member' ? 'selected' : ''}>🔓 普通成员以上</option>
                                 <option value="admin" ${c.permission === 'admin' ? 'selected' : ''}>🔒 仅限管理员</option>

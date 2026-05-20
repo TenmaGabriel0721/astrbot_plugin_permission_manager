@@ -244,6 +244,62 @@ class PermissionManagerCommands(CommandParserMixin):
                 
         logger.info(f"[PermissionManager] 成功自动应用了 {applied_count} 个指令的权限配置！")
 
+
+    async def get_all_tools_api(self):
+        llm_tools = self.context.provider_manager.llm_tools
+        
+        # 内置工具
+        builtin_tools = llm_tools.iter_builtin_tools()
+        # 其他插件/MCP工具
+        other_tools = llm_tools.func_list
+        
+        all_tools = []
+        
+        # 1. 内置工具
+        for t in builtin_tools:
+            all_tools.append({
+                "name": t.name,
+                "desc": t.description or "无描述",
+                "active": getattr(t, "active", True),
+                "type": "builtin"
+            })
+            
+        # 2. 其他工具
+        for t in other_tools:
+            t_type = "plugin"
+            if hasattr(t, "mcp_server_name") or "mcp" in str(type(t)).lower():
+                t_type = "mcp"
+            all_tools.append({
+                "name": t.name,
+                "desc": t.description or "无描述",
+                "active": getattr(t, "active", True),
+                "type": t_type
+            })
+            
+        # 根据名字去重（逻辑同 ToolSet）
+        dedup = {}
+        for tool in all_tools:
+            name = tool["name"]
+            if name not in dedup:
+                dedup[name] = tool
+            else:
+                existing = dedup[name]
+                if tool["active"] and not existing["active"]:
+                    dedup[name] = tool
+                elif tool["active"] == existing["active"]:
+                    dedup[name] = tool
+                    
+        return sorted(list(dedup.values()), key=lambda x: x["name"].lower())
+
+    async def set_tool_active(self, name: str, active: bool):
+        llm_tools = self.context.provider_manager.llm_tools
+        if active:
+            from astrbot.core.star.star import star_map
+            llm_tools.activate_llm_tool(name, star_map)
+        else:
+            llm_tools.deactivate_llm_tool(name)
+        return True
+
 class Main(star.Star):
     def __init__(self, context: star.Context, config: Any = None):
         super().__init__(context)
@@ -260,6 +316,8 @@ class Main(star.Star):
         # 新增 API
         context.register_web_api(f"/{PLUGIN_NAME}/commands/all", self.api_all_commands, ["GET"], "获取所有命令列表")
         context.register_web_api(f"/{PLUGIN_NAME}/plugin/<plugin_name>/logo", self.api_plugin_logo, ["GET"], "获取插件Logo")
+        context.register_web_api(f"/{PLUGIN_NAME}/tools/all", self.api_all_tools, ["GET"], "获取所有函数工具列表")
+        context.register_web_api(f"/{PLUGIN_NAME}/tools/<name>/set-active", self.api_set_tool_active, ["POST"], "设置函数工具激活状态")
 
         # 启动自动加载
         asyncio.create_task(self.auto_apply_permissions())
@@ -307,6 +365,22 @@ class Main(star.Star):
             return await send_file(default_logo)
         return jsonify({"success": False, "message": "No logo found"})
 
+    
+    async def api_all_tools(self):
+        try:
+            data = await self.perm_logic.get_all_tools_api()
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)})
+
+    async def api_set_tool_active(self, name):
+        try:
+            req = await request.json
+            active = req.get("active", True)
+            await self.perm_logic.set_tool_active(name, active)
+            return jsonify({"success": True})
+        except Exception as e:
+            return jsonify({"success": False, "message": str(e)})
     async def api_set_perm(self, plugin_name, handler_name):
         req = await request.json
         await self.perm_logic.set_command_permission(plugin_name, handler_name, req.get("permission"))
