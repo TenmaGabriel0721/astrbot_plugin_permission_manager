@@ -17,6 +17,6 @@ help: '命令列表：
   - 与原有的 /alter_cmd 命令完全兼容
 
   - 设置后立即生效，无需重启'
-name: astrbot_plugin_permission-manager
+name: astrbot_plugin_permission_manager
 repo: https://github.com/TenmaGabriel0721/astrbot_plugin_permission-manager
 version: 1.2.1
