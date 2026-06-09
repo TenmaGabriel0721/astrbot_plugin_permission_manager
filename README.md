@@ -1,4 +1,4 @@
-# astrbot_plugin_permission-manager
+# astrbot_plugin_permission_manager
 
 <div align="center">
 
