@@ -1,22 +1,6 @@
-author: gabriel0721
+author: TenmaGabriel0721
 desc: 批量权限管理插件，支持批量编辑和管理命令权限，通过 AstrBot 原生 Page 页面提供可视化界面，无需独立开端口
 display_name: 指令编辑拓展
-help: '命令列表：
-
-  - /perm list - 列出所有已启用的插件及其命令数量
-
-
-  功能特性：
-
-  - 批量设置插件所有命令的权限
-
-  - 查看插件命令列表和权限状态
-
-  - 接入 AstrBot v4.24 原生 Page 界面，可视化管理
-
-  - 与原有的 /alter_cmd 命令完全兼容
-
-  - 设置后立即生效，无需重启'
 name: astrbot_plugin_permission_manager
 repo: https://github.com/TenmaGabriel0721/astrbot_plugin_permission-manager
 version: 1.2.1
