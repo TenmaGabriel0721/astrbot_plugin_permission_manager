@@ -364,6 +364,25 @@
         </div>
     </div>
 
+    <!-- 改名模态框 -->
+    <div class="modal fade" id="renameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border-radius: 20px; overflow: hidden; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1);">
+                <div class="modal-header" style="background: linear-gradient(135deg, #ff8ba7, #c3a6ff); color: white;">
+                    <h5 class="modal-title fw-bold"><i class="fas fa-pen-to-square me-2"></i> 修改指令名</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <label for="rename-input" class="form-label fw-bold">新的指令名称</label>
+                    <input type="text" id="rename-input" class="form-control" style="border-radius: 12px; border: 2px solid #ffe3e8;" placeholder="输入新指令名">
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-primary w-100 py-2" id="save-rename-btn">保存改名</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 别名修改模态框 -->
     <div class="modal fade" id="aliasModal" tabindex="-1">
         <div class="modal-dialog">
@@ -488,6 +507,7 @@
         const bridge = window.AstrBotPluginPage;
         let currentPlugin = '';
         let currentHandler = '';
+        let currentRenameHandler = '';
         let currentAliases = [];
         
         let pluginsData = [];
@@ -576,8 +596,16 @@
             }
         };
 
+        function toAttrJson(value) {
+            return JSON.stringify(value)
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;');
+        }
+
         function renderCommandsTable(commandsList, tbody) {
-            tbody.innerHTML = commandsList.map(c => {
+            tbody.innerHTML = commandsList.map((c, index) => {
                 const aliasBadges = c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('');
                 return `
                     <tr>
@@ -588,19 +616,35 @@
                             <div class="mt-2">${aliasBadges}</div>
                         </td>
                         <td>
-                            <select class="form-select form-select-sm shadow-sm" onchange="setPerm('${c.handler}', this.value)" style="width: 180px; border-radius: 10px;">
+                            <select class="form-select form-select-sm shadow-sm cmd-perm-select" data-handler="${toAttrJson(c.handler)}" style="width: 180px; border-radius: 10px;">
                                 <option value="everyone" ${c.permission === 'everyone' ? 'selected' : ''}>🔑 所有人均可用</option>
                                 <option value="member" ${c.permission === 'member' ? 'selected' : ''}>🔓 普通成员以上</option>
                                 <option value="admin" ${c.permission === 'admin' ? 'selected' : ''}>🔒 仅限管理员</option>
                             </select>
                         </td>
                         <td class="text-end pe-4">
-                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3" onclick="openAliasModal('${c.handler}', ${JSON.stringify(c.aliases).replace(/"/g, '&quot;')})"><i class="fas fa-tags me-1"></i> 别名</button>
-                            <button class="btn btn-sm btn-outline-secondary rounded-pill px-3 ms-1" onclick="renameCmd('${c.handler}', '${c.name}')"><i class="fas fa-pen-to-square me-1"></i> 改名</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 alias-btn" data-index="${index}"><i class="fas fa-tags me-1"></i> 别名</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 ms-1 rename-btn" data-index="${index}"><i class="fas fa-pen-to-square me-1"></i> 改名</button>
                         </td>
                     </tr>
                 `;
             }).join('');
+
+            tbody.querySelectorAll('.cmd-perm-select').forEach(select => {
+                select.addEventListener('change', () => setPerm(select.dataset.handler, select.value));
+            });
+            tbody.querySelectorAll('.alias-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const cmd = commandsList[Number(button.dataset.index)];
+                    openAliasModal(cmd.handler, cmd.aliases);
+                });
+            });
+            tbody.querySelectorAll('.rename-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    const cmd = commandsList[Number(button.dataset.index)];
+                    openRenameModal(cmd.handler, cmd.name);
+                });
+            });
         }
 
         window.showListView = () => {
@@ -618,13 +662,24 @@
             showDetail(currentPlugin);
         };
 
-        window.renameCmd = async (handler, old) => {
-            const n = prompt("输入指令的新名称：", old);
-            if(n && n !== old) {
-                await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(handler)}/set-name`, { name: n });
+        window.openRenameModal = (handler, old) => {
+            currentRenameHandler = handler;
+            const input = document.getElementById('rename-input');
+            input.value = old || '';
+            new bootstrap.Modal(document.getElementById('renameModal')).show();
+            setTimeout(() => input.focus(), 200);
+        };
+
+        document.getElementById('save-rename-btn').addEventListener('click', async () => {
+            const n = document.getElementById('rename-input').value.trim();
+            if(n && currentRenameHandler) {
+                await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(currentRenameHandler)}/set-name`, { name: n });
+                bootstrap.Modal.getInstance(document.getElementById('renameModal')).hide();
                 showDetail(currentPlugin);
             }
-        };
+        });
+
+        window.renameCmd = window.openRenameModal;
 
         window.openAliasModal = (handler, aliases) => {
             currentHandler = handler;

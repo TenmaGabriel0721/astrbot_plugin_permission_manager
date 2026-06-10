@@ -176,6 +176,51 @@ class PermissionManagerCommands(CommandParserMixin):
         all_cmds.sort(key=lambda x: x["name"].lower())
         return all_cmds
 
+    def _get_plugin_name_for_handler(self, handler: StarHandlerMetadata) -> str:
+        if handler.handler_module_path in star_map:
+            return star_map[handler.handler_module_path].name
+        if "builtin" in handler.handler_module_path:
+            return "builtin_commands"
+        parts = handler.handler_module_path.split('.')
+        if len(parts) >= 3 and parts[0] == "data" and parts[1] == "plugins":
+            return parts[2]
+        return "builtin_commands"
+
+    def _find_handler(self, plugin_name: str, handler_name: str) -> Optional[StarHandlerMetadata]:
+        for handler in star_handlers_registry:
+            if handler.handler_name == handler_name and self._get_plugin_name_for_handler(handler) == plugin_name:
+                return handler
+        return None
+
+    def _refresh_group_children(self, group_filter: CommandGroupFilter) -> None:
+        group_filter._cmpl_cmd_names = None
+        parent_names = group_filter.get_complete_command_names()
+        for sub_filter in group_filter.sub_command_filters:
+            if isinstance(sub_filter, CommandFilter):
+                sub_filter.parent_command_names = parent_names
+                sub_filter._cmpl_cmd_names = None
+            elif isinstance(sub_filter, CommandGroupFilter):
+                sub_filter.parent_group = group_filter
+                self._refresh_group_children(sub_filter)
+
+    def _apply_command_identity(self, handler: StarHandlerMetadata, name: Optional[str] = None, aliases: Optional[List[str]] = None) -> bool:
+        for event_filter in handler.event_filters:
+            if isinstance(event_filter, CommandFilter):
+                if name is not None:
+                    event_filter.command_name = name
+                if aliases is not None:
+                    event_filter.alias = set(aliases)
+                event_filter._cmpl_cmd_names = None
+                return True
+            if isinstance(event_filter, CommandGroupFilter):
+                if name is not None:
+                    event_filter.group_name = name
+                if aliases is not None:
+                    event_filter.alias = set(aliases)
+                self._refresh_group_children(event_filter)
+                return True
+        return False
+
     async def set_command_permission(self, plugin_name, handler_name, permission):
         alter_cmd_cfg = await sp.global_get("alter_cmd", {})
         plugin_cfg = alter_cmd_cfg.setdefault(plugin_name, {})
@@ -228,7 +273,13 @@ class PermissionManagerCommands(CommandParserMixin):
             plugin_cfg = alter_cmd_cfg.get(plugin_name, {})
             cmd_cfg = plugin_cfg.get(handler.handler_name, {})
             permission = cmd_cfg.get("permission")
-            
+            name = cmd_cfg.get("name")
+            aliases = cmd_cfg.get("aliases") if "aliases" in cmd_cfg else None
+
+            if name is not None or aliases is not None:
+                if self._apply_command_identity(handler, name=name, aliases=aliases):
+                    applied_count += 1
+
             if permission in ["admin", "member"]:
                 target = PermissionType.ADMIN if permission == "admin" else PermissionType.MEMBER
                 found = False
@@ -401,15 +452,27 @@ class Main(star.Star):
         plugin_cfg = alter_cmd_cfg.setdefault(plugin_name, {})
         plugin_cfg.setdefault(handler_name, {})["name"] = new_name
         await sp.global_put("alter_cmd", alter_cmd_cfg)
+
+        handler = self.perm_logic._find_handler(plugin_name, handler_name)
+        if handler:
+            self.perm_logic._apply_command_identity(handler, name=new_name)
+
         return jsonify({"success": True})
 
     async def api_set_aliases(self, plugin_name, handler_name):
         req = await request.json
         aliases = req.get("aliases", [])
+        if not isinstance(aliases, list):
+            aliases = list(aliases) if aliases else []
         alter_cmd_cfg = await sp.global_get("alter_cmd", {})
         plugin_cfg = alter_cmd_cfg.setdefault(plugin_name, {})
         plugin_cfg.setdefault(handler_name, {})["aliases"] = aliases
         await sp.global_put("alter_cmd", alter_cmd_cfg)
+
+        handler = self.perm_logic._find_handler(plugin_name, handler_name)
+        if handler:
+            self.perm_logic._apply_command_identity(handler, aliases=aliases)
+
         return jsonify({"success": True})
 
     @filter.command_group("perm")
