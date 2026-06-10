@@ -14,7 +14,7 @@ from astrbot.core.star.filter.permission import PermissionTypeFilter, Permission
 from astrbot.core.utils.command_parser import CommandParserMixin
 from quart import jsonify, request, send_file
 
-PLUGIN_NAME = "astrbot_plugin_permission-manager"
+PLUGIN_NAME = "astrbot_plugin_permission_manager"
 
 class PermissionManagerCommands(CommandParserMixin):
     """批量权限管理逻辑类"""
