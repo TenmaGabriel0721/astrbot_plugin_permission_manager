@@ -505,7 +505,6 @@
         };
 
         const bridge = window.AstrBotPluginPage;
-        let pluginApiBase = '';
         let currentPlugin = '';
         let currentHandler = '';
         let currentRenameHandler = '';
@@ -516,8 +515,6 @@
 
         async function init() {
             await bridge.ready();
-            const pageContext = bridge.getContext();
-            pluginApiBase = `/api/plug/${encodeURIComponent(pageContext.pluginName)}`;
             loadAllData();
         }
 
@@ -545,8 +542,8 @@
                 return;
             }
             tbody.innerHTML = plugins.map(p => {
-                const logoHtml = p.has_logo 
-                    ? `<img src="${pluginApiBase}/plugin/${encodeURIComponent(p.name)}/logo" class="plugin-logo" onerror="this.outerHTML='<div class=\'logo-placeholder\'>${p.display_name[0].toUpperCase()}</div>'">`
+                const logoHtml = p.logo
+                    ? `<img src="${p.logo}" class="plugin-logo" onerror="this.outerHTML='<div class=\'logo-placeholder\'>${p.display_name[0].toUpperCase()}</div>'">`
                     : `<div class="logo-placeholder">${p.display_name[0].toUpperCase()}</div>`;
                 
                 return `
@@ -580,8 +577,8 @@
             document.getElementById('detail-desc').textContent = meta.desc;
 
             const logoContainer = document.getElementById('detail-logo-container');
-            logoContainer.innerHTML = meta.has_logo 
-                ? `<img src="${pluginApiBase}/plugin/${encodeURIComponent(name)}/logo" class="plugin-logo" style="width: 50px; height: 50px;">`
+            logoContainer.innerHTML = meta.logo
+                ? `<img src="${meta.logo}" class="plugin-logo" style="width: 50px; height: 50px;" onerror="this.outerHTML='<div class=\'logo-placeholder\' style=\'width: 50px; height: 50px; font-size: 1.5rem;\'>${meta.display_name[0].toUpperCase()}</div>'">`
                 : `<div class="logo-placeholder" style="width: 50px; height: 50px; font-size: 1.5rem;">${meta.display_name[0].toUpperCase()}</div>`;
 
             const tbody = document.getElementById('commands-tbody');

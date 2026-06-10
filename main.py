@@ -6,6 +6,7 @@ import astrbot.api.star as star
 import astrbot.api.event.filter as filter
 from astrbot.api.event import AstrMessageEvent, MessageChain
 from astrbot.api import sp, logger
+from astrbot.core import file_token_service
 from astrbot.core.star.star_handler import star_handlers_registry, StarHandlerMetadata
 from astrbot.core.star.star import star_map
 from astrbot.core.star.filter.command import CommandFilter
@@ -28,7 +29,8 @@ class PermissionManagerCommands(CommandParserMixin):
                 "desc": "AstrBot 核心自带的系统内置管理和功能指令",
                 "author": "AstrBot",
                 "version": "内置",
-                "has_logo": False
+                "has_logo": False,
+                "logo_path": None
             }
         for plugin in star_map.values():
             if plugin.name == plugin_name:
@@ -37,14 +39,16 @@ class PermissionManagerCommands(CommandParserMixin):
                     "desc": plugin.desc or plugin.short_desc or "暂无简介",
                     "author": plugin.author or "未知",
                     "version": plugin.version or "1.0.0",
-                    "has_logo": bool(plugin.logo_path and os.path.exists(plugin.logo_path))
+                    "has_logo": bool(plugin.logo_path and os.path.exists(plugin.logo_path)),
+                    "logo_path": plugin.logo_path if plugin.logo_path and os.path.exists(plugin.logo_path) else None
                 }
         return {
             "display_name": plugin_name,
             "desc": "暂无简介",
             "author": "未知",
             "version": "1.0.0",
-            "has_logo": False
+            "has_logo": False,
+            "logo_path": None
         }
 
     def _get_all_commands_by_plugin(self) -> Dict[str, List[tuple]]:
@@ -90,6 +94,7 @@ class PermissionManagerCommands(CommandParserMixin):
                 "author": meta["author"],
                 "version": meta["version"],
                 "has_logo": meta["has_logo"],
+                "logo": f"/api/file/{await file_token_service.register_file(meta['logo_path'], timeout=300)}" if meta["logo_path"] else None,
                 "command_count": len([c for c in cmds if c[2] == "command"]),
                 "group_count": len([c for c in cmds if c[3]]),
                 "total_commands": len(cmds)
