@@ -121,11 +121,7 @@ class PermissionManagerCommands(CommandParserMixin):
                         current_perm = "admin" if f.permission_type == PermissionType.ADMIN else "member"
                         break
             
-            aliases = cmd_cfg.get("aliases", [])
-            if not aliases:
-                for f in handler.event_filters:
-                    if isinstance(f, (CommandFilter, CommandGroupFilter)) and f.alias:
-                        aliases = list(f.alias); break
+            aliases = self._resolve_command_aliases(cmd_cfg, handler)
 
             info = {
                 "name": cmd_cfg.get("name", cmd_name),
@@ -161,11 +157,7 @@ class PermissionManagerCommands(CommandParserMixin):
                             current_perm = "admin" if f.permission_type == PermissionType.ADMIN else "member"
                             break
                 
-                aliases = cmd_cfg.get("aliases", [])
-                if not aliases:
-                    for f in handler.event_filters:
-                        if isinstance(f, (CommandFilter, CommandGroupFilter)) and f.alias:
-                            aliases = list(f.alias); break
+                aliases = self._resolve_command_aliases(cmd_cfg, handler)
 
                 all_cmds.append({
                     "plugin_name": plugin_name,
@@ -196,6 +188,18 @@ class PermissionManagerCommands(CommandParserMixin):
             if handler.handler_name == handler_name and self._get_plugin_name_for_handler(handler) == plugin_name:
                 return handler
         return None
+
+    def _get_handler_aliases(self, handler: StarHandlerMetadata) -> List[str]:
+        for f in handler.event_filters:
+            if isinstance(f, (CommandFilter, CommandGroupFilter)) and f.alias:
+                return list(f.alias)
+        return []
+
+    def _resolve_command_aliases(self, cmd_cfg: Dict[str, Any], handler: StarHandlerMetadata) -> List[str]:
+        if "aliases" in cmd_cfg:
+            aliases = cmd_cfg.get("aliases", [])
+            return aliases if isinstance(aliases, list) else list(aliases) if aliases else []
+        return self._get_handler_aliases(handler)
 
     def _refresh_group_children(self, group_filter: CommandGroupFilter) -> None:
         group_filter._cmpl_cmd_names = None
@@ -475,8 +479,10 @@ class Main(star.Star):
         await sp.global_put("alter_cmd", alter_cmd_cfg)
 
         handler = self.perm_logic._find_handler(plugin_name, handler_name)
-        if handler:
-            self.perm_logic._apply_command_identity(handler, aliases=aliases)
+        if not handler:
+            return jsonify({"success": False, "message": "未找到命令处理器"})
+        if not self.perm_logic._apply_command_identity(handler, aliases=aliases):
+            return jsonify({"success": False, "message": "命令处理器不支持设置别名"})
 
         return jsonify({"success": True})
 

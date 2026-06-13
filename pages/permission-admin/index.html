@@ -604,9 +604,19 @@
                 .replace(/>/g, '&gt;');
         }
 
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function renderCommandsTable(commandsList, tbody) {
             tbody.innerHTML = commandsList.map((c, index) => {
-                const aliasBadges = c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('');
+                const aliases = Array.isArray(c.aliases) ? c.aliases : [];
+                const aliasBadges = aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${escapeHtml(a)}</span>`).join('');
                 return `
                     <tr>
                         <td class="ps-4">
@@ -683,7 +693,7 @@
 
         window.openAliasModal = (handler, aliases) => {
             currentHandler = handler;
-            currentAliases = [...aliases];
+            currentAliases = Array.isArray(aliases) ? [...aliases] : [];
             renderAliasBadges();
             new bootstrap.Modal(document.getElementById('aliasModal')).show();
         };
@@ -698,15 +708,27 @@
         };
 
         window.saveAliases = async () => {
-            await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(currentHandler)}/set-aliases`, { aliases: currentAliases });
+            const resp = await bridge.apiPost(`command/${encodeURIComponent(currentPlugin)}/${encodeURIComponent(currentHandler)}/set-aliases`, { aliases: currentAliases });
+            if (resp && resp.success === false) {
+                alert('保存别名失败: ' + (resp.message || '未知错误'));
+                return;
+            }
             bootstrap.Modal.getInstance(document.getElementById('aliasModal')).hide();
             showDetail(currentPlugin);
         };
 
         function renderAliasBadges() {
-            document.getElementById('alias-badges').innerHTML = currentAliases.map((a, i) => `
-                <span class="badge bg-secondary p-2 d-inline-flex align-items-center gap-1" style="background-color: #ff8ba7 !important; border-radius: 8px;">${a} <i class="fas fa-times" style="cursor:pointer" onclick="currentAliases.splice(${i},1);renderAliasBadges()"></i></span>
+            const container = document.getElementById('alias-badges');
+            container.innerHTML = currentAliases.map((a, i) => `
+                <span class="badge bg-secondary p-2 d-inline-flex align-items-center gap-1" style="background-color: #ff8ba7 !important; border-radius: 8px;">${escapeHtml(a)} <i class="fas fa-times alias-remove-btn" style="cursor:pointer" data-index="${i}"></i></span>
             `).join('');
+
+            container.querySelectorAll('.alias-remove-btn').forEach(button => {
+                button.addEventListener('click', () => {
+                    currentAliases.splice(Number(button.dataset.index), 1);
+                    renderAliasBadges();
+                });
+            });
         }
 
         // 🌟 跨插件全局搜索核心机制
@@ -731,7 +753,7 @@
                 c.original_name.toLowerCase().includes(term) || 
                 c.handler.toLowerCase().includes(term) || 
                 c.desc.toLowerCase().includes(term) || 
-                c.aliases.some(a => a.toLowerCase().includes(term))
+                (Array.isArray(c.aliases) ? c.aliases : []).some(a => a.toLowerCase().includes(term))
             );
 
             const searchCard = document.getElementById('command-search-card');
@@ -748,7 +770,7 @@
                             <small class="text-muted"><i class="fas fa-terminal me-1"></i>${c.handler}</small>
                             <span class="badge rounded-pill ms-2" style="background-color:#c3a6ff; color:#fff;">${c.plugin_display_name}</span>
                             ${c.desc ? `<div class="text-muted small mt-1" style="font-size: 0.8rem;">${c.desc}</div>` : ''}
-                            <div class="mt-2">${c.aliases.map(a => `<span class="badge bg-light text-dark border ms-1">${a}</span>`).join('')}</div>
+                            <div class="mt-2">${(Array.isArray(c.aliases) ? c.aliases : []).map(a => `<span class="badge bg-light text-dark border ms-1">${escapeHtml(a)}</span>`).join('')}</div>
                         </td>
                         <td>
                             <select class="form-select form-select-sm shadow-sm" onchange="setGlobalPerm('${c.plugin_name}', '${c.handler}', this.value)" style="width: 180px; border-radius: 10px;">
