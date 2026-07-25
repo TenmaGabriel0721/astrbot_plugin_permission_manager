@@ -1,0 +1,6 @@
+author: TenmaGabriel0721
+desc: 批量权限管理插件，支持批量编辑和管理命令权限，通过 AstrBot 原生 Page 页面提供可视化界面，无需独立开端口
+display_name: 指令编辑拓展
+name: astrbot_plugin_permission_manager
+repo: https://github.com/TenmaGabriel0721/astrbot_plugin_permission_manager
+version: 1.4.0

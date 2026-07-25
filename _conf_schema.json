@@ -1,0 +1,63 @@
+{
+    "command_enabled": {
+        "description": "启用命令行功能",
+        "type": "bool",
+        "hint": "启用后可以使用 /perm list 等命令查看插件列表。默认值为 true。",
+        "default": true
+    },
+    "auto_apply_on_load": {
+        "description": "插件加载时自动应用权限",
+        "type": "bool",
+        "hint": "启用后，插件加载时会自动应用已保存的权限配置。默认值为 true。",
+        "default": true
+    },
+    "batch_operation_confirm": {
+        "description": "批量操作需要确认",
+        "type": "bool",
+        "hint": "启用后，批量设置权限时会弹出确认提示。默认值为 true。",
+        "default": true
+    },
+    "log_permission_changes": {
+        "description": "记录权限变更日志",
+        "type": "bool",
+        "hint": "启用后，权限变更会被记录到日志中。默认值为 false。",
+        "default": false
+    },
+    "private_chat_notify": {
+        "description": "私聊禁用时发送提示",
+        "type": "bool",
+        "hint": "仅在指令的“私聊可用”开关关闭时生效；关闭后静默拦截，默认关闭。",
+        "default": false
+    },
+    "private_chat_denied_message": {
+        "description": "私聊禁用提示文案",
+        "type": "string",
+        "hint": "开启私聊提示后使用的回复内容，可自行编辑。",
+        "default": "该指令不支持私聊使用。"
+    },
+    "group_admin_notify": {
+        "description": "群管理员权限不足时发送提示",
+        "type": "bool",
+        "hint": "普通群成员使用群主/群管理员权限指令时是否回复提示；关闭后静默拦截，默认关闭。",
+        "default": false
+    },
+    "group_admin_denied_message": {
+        "description": "群管理员权限不足提示文案",
+        "type": "string",
+        "hint": "开启群管理员权限提示后使用的回复内容，可自行编辑。",
+        "default": "该指令仅限群主、群管理员或 AstrBot 框架管理员使用。"
+    },
+    "global_command_cooldown_seconds": {
+        "description": "全局指令冷却时间（秒）",
+        "type": "float",
+        "hint": "同一平台的同一群组内所有指令共用一个冷却计时器；设置为 0 表示关闭。",
+        "default": 0
+    },
+    "cooldown_hit_mode": {
+        "description": "命中冷却时的处理方式",
+        "type": "string",
+        "options": ["ignore", "queue"],
+        "hint": "ignore：静默忽略；queue：静默等待冷却结束后执行。",
+        "default": "ignore"
+    }
+}

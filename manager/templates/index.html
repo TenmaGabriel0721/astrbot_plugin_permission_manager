@@ -1,0 +1,125 @@
+{% extends "layout.html" %}
+
+{% block title %}首页{% endblock %}
+
+{% block content %}
+<div class="p-5 mb-4 bg-light rounded-3 shadow-sm">
+    <div class="container-fluid py-4">
+        <h1 class="display-5 fw-bold"><i class="fas fa-shield-lock"></i> 权限管理后台</h1>
+        <p class="col-md-8 fs-4">批量管理所有插件的命令权限，支持可视化操作和批量设置。</p>
+    </div>
+</div>
+
+<div class="row" id="plugins-container">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="fas fa-puzzle-piece"></i> 插件列表</h5>
+            </div>
+            <div class="card-body">
+                <div class="input-group mb-3">
+                    <span class="input-group-text"><i class="fas fa-search"></i></span>
+                    <input type="text" class="form-control" id="plugin-search" placeholder="搜索插件...">
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover" id="plugins-table">
+                        <thead>
+                            <tr>
+                                <th>插件名</th>
+                                <th>命令数</th>
+                                <th>指令组数</th>
+                                <th>总命令数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody id="plugins-tbody">
+                            <tr>
+                                <td colspan="5" class="text-center">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">加载中...</span>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadPlugins();
+    
+    // 搜索功能
+    document.getElementById('plugin-search').addEventListener('input', function(e) {
+        const searchTerm = e.target.value.toLowerCase();
+        const rows = document.querySelectorAll('#plugins-tbody tr');
+        rows.forEach(row => {
+            const pluginName = row.querySelector('td:first-child')?.textContent.toLowerCase() || '';
+            if (pluginName.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    });
+});
+
+async function loadPlugins() {
+    try {
+        const response = await fetch('/admin/api/plugins');
+        const result = await response.json();
+        
+        if (result.success) {
+            displayPlugins(result.data);
+        } else {
+            showError('加载插件列表失败: ' + result.message);
+        }
+    } catch (error) {
+        showError('加载插件列表失败: ' + error.message);
+    }
+}
+
+function displayPlugins(plugins) {
+    const tbody = document.getElementById('plugins-tbody');
+    tbody.innerHTML = '';
+    
+    if (plugins.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">没有找到插件</td></tr>';
+        return;
+    }
+    
+    plugins.forEach(plugin => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><strong>${escapeHtml(plugin.name)}</strong></td>
+            <td>${plugin.command_count}</td>
+            <td>${plugin.group_count}</td>
+            <td><span class="badge bg-primary">${plugin.total_commands}</span></td>
+            <td>
+                <a href="/admin/plugin/${encodeURIComponent(plugin.name)}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-eye"></i> 查看详情
+                </a>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function showError(message) {
+    const tbody = document.getElementById('plugins-tbody');
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">${escapeHtml(message)}</td></tr>`;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}
+
