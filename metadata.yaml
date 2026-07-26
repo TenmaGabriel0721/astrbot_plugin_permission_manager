@@ -3,4 +3,4 @@ desc: 批量权限管理插件，支持批量编辑和管理命令权限，通�
 display_name: 指令编辑拓展
 name: astrbot_plugin_permission_manager
 repo: https://github.com/TenmaGabriel0721/astrbot_plugin_permission_manager
-version: 1.4.0
+version: 1.5.0
